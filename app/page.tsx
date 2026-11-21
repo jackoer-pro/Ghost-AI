@@ -1,10 +1,16 @@
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
+import { Suspense } from "react"
+
+async function RedirectByAuth(): Promise<never> {
+  const { userId } = await auth()
+  redirect(userId ? "/editor" : "/sign-in")
+}
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Button>Ghost AI</Button>
-    </div>
-  );
+    <Suspense>
+      <RedirectByAuth />
+    </Suspense>
+  )
 }

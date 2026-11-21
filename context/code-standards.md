@@ -1,127 +1,50 @@
-# Ghost AI — Code Standards
+# Code Standards
 
-## 1. General Principles
+## General
 
-- Write maintainable and readable code.
-- Follow the established architecture.
-- Keep implementations focused.
-- Avoid unnecessary abstractions.
-- Reuse existing components and utilities.
-- Avoid duplicated business logic.
-- Maintain consistency across feature implementations.
+- Keep modules small and single-purpose.
+- Fix root causes — do not layer workarounds.
+- Do not mix unrelated concerns in one component or route.
+- Respect the system boundaries defined in `architecture-context.md`.
 
-## 2. TypeScript
+## TypeScript
 
-- Enable strict TypeScript mode.
-- Avoid using `any`.
-- Define explicit types for important application data.
-- Reuse shared types where appropriate.
-- Handle nullable and optional values explicitly.
-- Validate external data at system boundaries.
+- Strict mode is required throughout the project.
+- Avoid `any`; use explicit interfaces or narrowly scoped types.
+- Validate unknown external input at system boundaries before trusting it.
+- Use `interface` for object contracts.
 
-## 3. Next.js Conventions
+## Next.js
 
-- Use the App Router.
-- Prefer Server Components by default.
-- Use Client Components only when browser interactivity is required.
-- Avoid unnecessary `use client` declarations.
-- Keep server-side logic separate from client-side components.
-- Follow the existing route and request-handler conventions.
-- Use the installed Next.js version's official documentation.
+- Default to React Server Components.
+- Add `"use client"` only when the component needs browser interactivity, hooks, or real-time state.
+- Keep route handlers focused on a single responsibility.
+- Long-running work belongs in background tasks, not in request handlers.
 
-## 4. React Conventions
+## Styling
 
-- Use functional components.
-- Keep components focused on their responsibilities.
-- Reuse shared UI components.
-- Avoid unnecessary state.
-- Separate complex application logic from presentation.
-- Maintain predictable component boundaries.
+- Use CSS custom property tokens defined in `globals.css` — no raw Tailwind color classes like `zinc-*` or hardcoded hex values.
+- Reference tokens through their Tailwind utility names: `bg-base`, `text-copy-primary`, `border-surface-border`, `text-brand`, etc.
+- Maintain the border radius scale: `rounded-xl` for small elements, `rounded-2xl` for cards, `rounded-3xl` for modals.
 
-## 5. Styling Conventions
+## API Routes
 
-- Use Tailwind CSS v4.
-- Use centralised design tokens.
-- Avoid hardcoded hexadecimal colour values.
-- Avoid raw Tailwind colour classes when semantic design tokens are available.
-- Follow the dark-only theme.
-- Reuse existing styling patterns.
+- Validate and parse request input before any logic runs.
+- Enforce auth and project ownership checks before any mutation.
+- Return consistent, predictable response shapes.
+- Keep route handlers thin — push complexity into shared modules or background tasks.
 
-## 6. UI Components
+## Data and Storage
 
-- Use shadcn/ui for standard UI primitives.
-- Use Lucide React for icons.
-- Create reusable application-level components where appropriate.
-- Do not modify protected shadcn/ui component files without explicit instruction.
-- Keep component responsibilities clear.
+- Project metadata and relationships belong in PostgreSQL via Prisma.
+- Canvas snapshots and generated specs belong in Vercel Blob; Prisma stores only the blob URL reference.
+- Do not store large generated content directly in the database.
+- Task run records are first-class relational data — treat ownership and run IDs as verified before any token issuance.
 
-## 7. API and Request Handler Conventions
+## File Organization
 
-- Validate incoming data.
-- Authenticate protected operations.
-- Verify project ownership and membership.
-- Enforce authorisation before mutations.
-- Return appropriate error responses.
-- Keep request handlers focused.
-- Do not execute long-running AI generation inside ordinary request handlers.
-
-## 8. Database Conventions
-
-- Use Prisma for database operations.
-- Use PostgreSQL for persistent metadata.
-- Follow established Prisma models and relationships.
-- Use migrations for schema changes.
-- Avoid unnecessary database duplication.
-- Keep large artifacts in Vercel Blob according to the architecture.
-
-## 9. Real-Time Collaboration
-
-- Use React Flow for canvas and diagram interactions.
-- Use Liveblocks for collaborative functionality.
-- Reuse the established collaboration architecture.
-- Verify project membership before issuing collaboration tokens.
-- Avoid implementing a separate custom WebSocket system when Liveblocks already provides the required functionality.
-
-## 10. AI Integration
-
-- Use the Vercel AI SDK for model integration.
-- Follow the configured Gemini model.
-- Keep AI generation separate from presentation components.
-- Validate structured AI outputs.
-- Handle model failures and asynchronous task states.
-- Use Trigger.dev for long-running AI operations.
-
-## 11. Background Processing
-
-- Use Trigger.dev for long-running operations.
-- Implement appropriate task status tracking.
-- Use retry handling where appropriate.
-- Report task progress to the frontend.
-- Avoid blocking ordinary user interactions during background execution.
-
-## 12. Storage
-
-- PostgreSQL stores application metadata.
-- Vercel Blob stores large artifacts.
-- Avoid storing large JSON snapshots or lengthy Markdown documents directly in the database.
-- Maintain references between database records and stored artifacts.
-
-## 13. Code Verification
-
-After implementing a feature:
-- Check TypeScript errors.
-- Run linting.
-- Verify relevant functionality.
-- Check affected application flows.
-- Run the production build.
-- Review security and authorisation boundaries.
-
-Use the actual scripts configured in `package.json`.
-
-## 14. Dependency Management
-
-- Reuse existing dependencies.
-- Avoid installing packages unnecessarily.
-- Follow official integration documentation.
-- Use the official agent skills for external services where available.
-- Verify API compatibility with the installed framework version.
+- `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
+- `trigger/` — all durable background tasks and AI workflows.
+- `components/` — UI composition only; no business logic.
+- `app/api/` — route handlers for auth, triggering, and persistence.
+- Name files after the responsibility they contain, not the technology.

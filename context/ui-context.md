@@ -1,201 +1,105 @@
-# Ghost AI — UI Context
+# UI Context
 
-## 1. Design Direction
+## Theme
 
-Ghost AI uses a dark-only interface designed for a technical engineering workspace.
+Dark only. No light mode. The visual language is a dark technical workspace — near-black backgrounds, layered surfaces, and vivid accent colors for interactive elements.
 
-The design should feel:
-- Dark.
-- Technical.
-- Precise.
-- Modern.
-- Functional.
-- Minimal and structured.
+All colors are defined as CSS custom properties in `globals.css` and mapped to Tailwind tokens via `@theme inline`. Components must use these tokens — no hardcoded hex values or raw Tailwind color classes like `zinc-*`.
 
-The application should resemble a professional system-design tool rather than a conventional marketing website.
+| Role             | CSS Variable           | Hex / Value               |
+| ---------------- | ---------------------- | ------------------------- |
+| Page background  | `--bg-base`            | `#080809`                 |
+| Surface          | `--bg-surface`         | `#111114`                 |
+| Elevated surface | `--bg-elevated`        | `#18181c`                 |
+| Subtle surface   | `--bg-subtle`          | `#1e1e23`                 |
+| Default border   | `--border-default`     | `#2a2a30`                 |
+| Subtle border    | `--border-subtle`      | `#3a3a42`                 |
+| Primary text     | `--text-primary`       | `#f0f0f4`                 |
+| Secondary text   | `--text-secondary`     | `#c0c0cc`                 |
+| Muted text       | `--text-muted`         | `#808090`                 |
+| Faint text       | `--text-faint`         | `#505060`                 |
+| Brand accent     | `--accent-primary`     | `#00c8d4` (cyan)          |
+| Brand dim        | `--accent-primary-dim` | `rgba(0, 200, 212, 0.12)` |
+| AI accent        | `--accent-ai`          | `#6457f9` (indigo-purple) |
+| AI text          | `--accent-ai-text`     | `#8b82ff`                 |
+| Error            | `--state-error`        | `#ff4d4f`                 |
+| Success          | `--state-success`      | `#34d399`                 |
+| Warning          | `--state-warning`      | `#fbbf24`                 |
 
-## 2. Theme
+Tailwind utility names map to these variables. Use `bg-base`, `bg-surface`, `text-copy-primary`, `text-copy-muted`, `border-surface-border`, `text-brand`, `bg-accent-dim`, etc.
 
-- Dark only. No light mode. The visual language is a dark technical workspace: near-black backgrounds, layered surfaces, and vivid accent colours for interactive elements.
-- No light theme.
-- All colours must be defined through centralised design tokens.
-- Avoid hardcoded colour values throughout components.
-- Maintain consistent contrast and readability.
+## Typography
 
-## 3. Design Tokens
-
-Define the design system using CSS custom properties in `app/globals.css`.
-
-The token system should cover:
-
-### Background
-- Main application background.
-- Secondary background.
-- Elevated surface.
-- Canvas background.
-
-### Text
-- Primary text.
-- Secondary text.
-- Muted text.
-- Disabled text.
-
-### Borders
-- Default border.
-- Subtle border.
-- Focus border.
-
-### Interactive Elements
-- Primary action.
-- Secondary action.
-- Hover state.
-- Active state.
-- Destructive state.
-- Focus ring.
-
-All colours are defined as CSS custom properties in `globals.css` and mapped to Tailwind tokens via `@theme inline`. Components must use these tokens: no hardcoded hex values or raw Tailwind colour classes like `zinc-*`.
-
-| Role | CSS Variable | Hex / Value |
-|---|---|---|
-| Page background | `--bg-base` | `#080809` |
-| Surface | `--bg-surface` | `#111114` |
-| Elevated surface | `--bg-elevated` | `#18181c` |
-| Subtle surface | `--bg-subtle` | `#1e1e23` |
-| Faint text | `--text-faint` | `#505060` |
-| Brand accent | `--accent-primary` | `#00c8d4` (cyan) |
-| Brand dim | `--accent-primary-dim` | `rgba(0, 200, 212, 0.12)` |
-| AI accent | `--accent-ai` | `#6457f9` (indigo-purple) |
-| AI text | `--accent-ai-text` | `#8b82ff` |
-| Error | `--state-error` | `#ff4d4f` |
-| Success | `--state-success` | `#34d399` |
-| Warning | `--state-warning` | `#fbbf24` |
-
-Rows not yet captured from the reference (e.g. borders, primary/secondary/muted text) must also come from the original design reference. Do not invent replacement hex values.
-
-## 4. Typography
-
-Establish consistent typography tokens.
-
-Define:
-- Primary font family.
-- Font weights.
-- Heading sizes.
-- Body text sizes.
-- Small text and metadata sizes.
-- Line heights.
-
-Use a consistent typographic hierarchy throughout the application.
-
-| Role | Font | CSS Variable |
-|---|---|---|
-| UI text | Geist Sans | `--font-geist-sans` |
+| Role      | Font       | CSS Variable        |
+| --------- | ---------- | ------------------- |
+| UI text   | Geist Sans | `--font-geist-sans` |
 | Code/mono | Geist Mono | `--font-geist-mono` |
 
 Both fonts are loaded via `next/font/google` and applied as CSS variables on the `<html>` element. The base `body` uses Geist Sans with `antialiased`.
 
-## 5. Border Radius
+## Border Radius
 
-Define a reusable border-radius scale for:
-- Buttons.
-- Input fields.
-- Cards.
-- Dialogs.
-- Panels.
-- Popovers.
+Radius increases with surface depth — smaller for inner elements, larger for outer containers.
 
-Avoid arbitrary radius values in individual components.
+| Context           | Class         |
+| ----------------- | ------------- |
+| Inline / small UI | `rounded-xl`  |
+| Cards / panels    | `rounded-2xl` |
+| Modal / overlay   | `rounded-3xl` |
 
-## 6. Component Library
+## Canvas
 
-Use shadcn/ui for reusable UI components.
+### Node Color Palette
 
-The initial design-system setup should include the components required throughout the application.
+8 defined color pairs. Each pair specifies a dark node fill and a vivid contrasting text color tuned for readability on the dark canvas. Defined in `types/canvas.ts` as `NODE_COLORS`.
 
-Examples of reusable primitives:
-- Buttons.
-- Dialogs.
-- Dropdown menus.
-- Inputs.
-- Selects.
-- Tabs.
-- Tooltips.
-- Cards.
-- Avatars.
-- Scroll areas.
-- Separators.
+| Node fill | Text color | Character              |
+| --------- | ---------- | ---------------------- |
+| `#1F1F1F` | `#EDEDED`  | Neutral dark (default) |
+| `#10233D` | `#52A8FF`  | Blue                   |
+| `#2E1938` | `#BF7AF0`  | Purple                 |
+| `#331B00` | `#FF990A`  | Orange                 |
+| `#3C1618` | `#FF6166`  | Red                    |
+| `#3A1726` | `#F75F8F`  | Pink                   |
+| `#0F2E18` | `#62C073`  | Green                  |
+| `#062822` | `#0AC7B4`  | Teal                   |
 
-Use the existing installed shadcn/ui components rather than creating unnecessary replacements.
+Default node color: `#1F1F1F` with `#EDEDED` text.
 
-Installed shadcn/ui component files should be treated as protected library outputs. Do not modify them without explicit instruction.
+### Edge Style
 
-## 7. Layout Patterns
+Smooth-step path with an arrow marker. Default edge color: `#f8fafc`. Stroke width is thin — edges are visually secondary to nodes.
 
-### Application Shell
-Provides the main application structure and navigation.
+### Node Shapes
 
-### Project Interface
-Displays project information and project-related actions.
+6 supported shapes, defined in `types/canvas.ts` as `NODE_SHAPES`. Complex shapes (diamond, hexagon, cylinder) are rendered as inline SVGs rather than CSS borders.
 
-### Architecture Workspace
-Provides the main canvas area and associated editing tools.
+- `rectangle` — default general-purpose node
+- `diamond` — decision / gateway
+- `circle` — event / endpoint
+- `pill` — service / process
+- `cylinder` — database / storage
+- `hexagon` — external system / boundary
 
-### Sidebar
-Provides contextual navigation and workspace-related functionality.
+### Connection Handles
 
-### Dialogues
-Used for project creation and management interactions.
+Small white circular handles, hidden by default, revealed on node hover. Appear at all four sides of a node.
 
-### Chat Sidebar
-Provides the AI interaction interface.
+### Canvas Background
 
-### Collaboration Indicators
-Displays avatars and collaborator presence.
+React Flow `<Background>` component. Canvas sits on the base background color.
 
-## 8. Canvas Design
+## Component Library
 
-The architecture canvas is the primary workspace.
+shadcn/ui on top of Tailwind. No custom design system. Components live in `components/ui/`. Use the `shadcn` CLI to add new components rather than writing them from scratch.
 
-The interface must support:
-- Node visibility.
-- Edge visibility.
-- Node selection.
-- Node editing.
-- Canvas navigation.
-- Collaborative activity.
-- AI-generated architecture updates.
+## Layout Patterns
 
-Maintain a consistent visual distinction between the canvas and surrounding application interface.
+- Editor workspace: full-viewport layout — floating sidebar overlay on the left, center canvas, slide-over AI sidebar on the right.
+- Sidebars: floating overlay with dark semi-transparent background and subtle border.
+- Modals and dialogs: centered overlay, `rounded-3xl`, dark background with backdrop blur.
+- Navbar: top bar with dark background and bottom border.
 
-## 9. Icons
+## Icons
 
-Use Lucide React as the icon library.
-
-Maintain consistent:
-- Icon sizing.
-- Stroke style.
-- Alignment.
-- Spacing.
-
-Avoid introducing multiple unrelated icon libraries.
-
-## 10. Styling Rules
-
-- Use Tailwind CSS v4.
-- Use centralised theme tokens.
-- Avoid hardcoded hexadecimal colours.
-- Avoid raw Tailwind colour classes when the design system provides a semantic token.
-- Reuse shared component styles.
-- Keep dark theme styling consistent.
-- Avoid introducing a light theme.
-
-## 11. UI Consistency
-
-Every new feature must follow the established design system.
-
-Before creating new UI components:
-1. Check whether a reusable component already exists.
-2. Check existing styling conventions.
-3. Reuse established tokens.
-4. Maintain the existing layout hierarchy.
-
-Do not independently redesign existing application sections when implementing a new feature.
+Lucide React. Stroke-based icons only — no filled variants. Icon sizes: `h-4 w-4` for inline, `h-5 w-5` for buttons, `h-8 w-8` for feature icons in empty states.
