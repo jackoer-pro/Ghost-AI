@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–05 done; feature 06 (`context/feature-specs/06-project-apis.md`) is next.
+- Features 01–06 done; feature 07 (`context/feature-specs/07-wire-editor-home.md`) is next.
 
 ## Completed
 
@@ -31,16 +31,20 @@ change.
 
 - Feature 05 Prisma models: `prisma/models/project.prisma` has `ProjectStatus` enum (`DRAFT`, `ARCHIVED`), `Project` (Clerk `ownerId`, name, optional description, status, optional `canvasJsonPath`, timestamps; indexes on `ownerId` and `createdAt`) and `ProjectCollaborator` (cascade-delete relation to `Project`, email, `createdAt`; unique `[projectId, email]`; indexes on `email` and `[projectId, createdAt]`). `prisma.config.ts` now points `schema` at the `prisma/` folder (multi-file schema). First migration `20261121233740_init` applied to Prisma Postgres; client regenerated. Checked with a create → cascade-delete round trip against the real DB, `tsc`, and `npm run build`.
 
+- Feature 06 project APIs (backend only, UI not wired): `app/api/projects/route.ts` (`GET` lists the signed-in user's owned projects newest first; `POST` creates one with `ownerId` = Clerk user ID, blank/missing name → `Untitled Project`, cuid IDs from the schema) and `app/api/projects/[projectId]/route.ts` (`PATCH` renames, `DELETE` deletes; both go through `checkOwner()` → `401` signed out, `404` unknown project, `403` not the owner). Names are validated by `parseProjectName()` in `lib/projects.ts` (trimmed, 1–100 chars, else `400`). Errors are always `{ error: string }`; success is `{ projects }` / `{ project }` (`201` on create) / `204` on delete. `tsc`, `eslint`, `npm run build` pass; on `next start` all four routes return `401` JSON when signed out and `/editor` still redirects. The `403`/`404` paths are not yet exercised live (needs two signed-in Clerk users).
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Feature 06 project APIs (`06-project-apis.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Feature 07 wire editor home to the real API (`07-wire-editor-home.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions
+
+- Feature 07 says the project ID and the Liveblocks room ID "should stay aligned" and that create builds the room ID from a slug + short unique suffix on the client. Feature 06 says `POST` uses the schema's cuid IDs. Either `POST` must accept a client-supplied ID (and validate/dedupe it), or the room ID is derived from the cuid. Decide before building 07.
 
 - Hex values for border and primary/secondary/muted text tokens are still missing from the design reference; `--foreground`, `--muted-foreground`, `--border`, `--input` temporarily keep shadcn's dark oklch values.
 
@@ -60,6 +64,8 @@ change.
 - `lib/prisma.ts` uses the direct `@prisma/adapter-pg` path only. The spec's Accelerate branch for `prisma+postgres://` URLs is skipped because our `DATABASE_URL` is `postgres://`; add `@prisma/extension-accelerate` and the branch if that ever changes.
 - `DATABASE_URL` uses `sslmode=verify-full` (was `require`): pg already treats `require` as `verify-full` today but will weaken it in pg v9, so this pins the current strict behavior.
 - Prisma 7 `migrate dev` does not run `generate`; run `npx prisma generate` after each migration.
+
+- `proxy.ts` no longer runs `auth.protect()` on `/api/*`; each API handler calls `auth()` itself and returns JSON `401`/`403`. `auth.protect()` would answer an API call with a redirect or `404`, which breaks the spec's status codes. Every new API handler must do its own auth check.
 
 ## Session Notes
 

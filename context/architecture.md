@@ -33,7 +33,7 @@
 
 - Every project has a single owner (Clerk user ID).
 - Projects can include additional collaborators.
-- Only authenticated users can access protected routes.
+- Only authenticated users can access protected routes. Pages are protected in `proxy.ts`; `/api/*` is excluded there and each handler checks `auth()` itself so it can return JSON `401`/`403`.
 - Only the owner or a collaborator can mutate project resources.
 - Liveblocks room tokens are issued only after verifying project membership.
 

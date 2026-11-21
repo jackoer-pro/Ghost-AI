@@ -4,9 +4,12 @@ const signInUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL ?? "/sign-in"
 const signUpUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL ?? "/sign-up"
 
 const isPublicRoute = createRouteMatcher([`${signInUrl}(.*)`, `${signUpUrl}(.*)`])
+// API handlers check auth themselves so they can answer 401/403 as JSON;
+// auth.protect() would answer API calls with a redirect or 404 instead.
+const isApiRoute = createRouteMatcher(["/api(.*)"])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) await auth.protect()
+  if (!isPublicRoute(req) && !isApiRoute(req)) await auth.protect()
 })
 
 export const config = {
