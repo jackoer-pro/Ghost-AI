@@ -1,17 +1,19 @@
 import { Pencil, Plus, Trash2, X } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { Project } from "@/lib/projects"
+import type { ProjectSummary } from "@/lib/projects"
 import { cn } from "@/lib/utils"
 
 type ProjectSidebarProps = {
   isOpen: boolean
   onClose: () => void
-  projects: Project[]
+  owned: ProjectSummary[]
+  shared: ProjectSummary[]
   onCreate: () => void
-  onRename: (project: Project) => void
-  onDelete: (project: Project) => void
+  onRename: (project: ProjectSummary) => void
+  onDelete: (project: ProjectSummary) => void
 }
 
 // Positioned against the nearest `relative` ancestor (the editor area below
@@ -19,15 +21,13 @@ type ProjectSidebarProps = {
 export function ProjectSidebar({
   isOpen,
   onClose,
-  projects,
+  owned,
+  shared,
   onCreate,
   onRename,
   onDelete,
 }: ProjectSidebarProps) {
-  const owned = projects.filter((p) => p.isOwner)
-  const shared = projects.filter((p) => !p.isOwner)
-
-  const list = (items: Project[], empty: string) =>
+  const list = (items: ProjectSummary[], empty: string) =>
     items.length === 0 ? (
       <p className="py-8 text-center text-muted-foreground">{empty}</p>
     ) : (
@@ -37,7 +37,9 @@ export function ProjectSidebar({
             key={project.id}
             className="group flex items-center gap-1 rounded-xl px-2 py-1.5 hover:bg-sidebar-accent"
           >
-            <span className="min-w-0 flex-1 truncate">{project.name}</span>
+            <Link href={`/editor/${project.id}`} className="min-w-0 flex-1 truncate">
+              {project.name}
+            </Link>
             {project.isOwner && (
               <div className="flex shrink-0 gap-0.5 md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
                 <Button

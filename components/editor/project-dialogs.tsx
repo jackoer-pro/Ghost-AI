@@ -12,20 +12,26 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import type { ProjectDialogsController } from "@/hooks/use-project-dialogs"
+import type { ProjectActions } from "@/hooks/use-project-actions"
 
 interface ProjectDialogsProps {
-  controller: ProjectDialogsController
+  actions: ProjectActions
 }
 
-// Renders whichever project dialog the controller says is open.
-export function ProjectDialogs({ controller: c }: ProjectDialogsProps) {
-  const { dialog } = c
+// Renders whichever project dialog the actions hook says is open.
+export function ProjectDialogs({ actions: a }: ProjectDialogsProps) {
+  const { dialog } = a
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault()
-    void c.submit()
+    void a.submit()
   }
+
+  const errorText = a.error && (
+    <p role="alert" className="text-sm text-destructive">
+      {a.error}
+    </p>
+  )
 
   const nameForm = (title: string, description: string, action: string) => (
     <form onSubmit={onSubmit} className="grid gap-4">
@@ -38,21 +44,22 @@ export function ProjectDialogs({ controller: c }: ProjectDialogsProps) {
           autoFocus
           aria-label="Project name"
           placeholder="Project name"
-          value={c.name}
-          onChange={(e) => c.setName(e.target.value)}
-          disabled={c.isSubmitting}
+          value={a.name}
+          onChange={(e) => a.setName(e.target.value)}
+          disabled={a.isSubmitting}
         />
         {dialog.kind === "create" && (
-          <p className="font-mono text-xs text-muted-foreground">
-            Slug: {c.slug || "—"}
+          <p className="truncate font-mono text-xs text-muted-foreground">
+            Room ID: {a.canSubmitName ? a.roomId : "—"}
           </p>
         )}
+        {errorText}
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={c.close}>
+        <Button type="button" variant="outline" onClick={a.close}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!c.canSubmitName || c.isSubmitting}>
+        <Button type="submit" disabled={!a.canSubmitName || a.isSubmitting}>
           {action}
         </Button>
       </DialogFooter>
@@ -60,7 +67,7 @@ export function ProjectDialogs({ controller: c }: ProjectDialogsProps) {
   )
 
   return (
-    <Dialog open={dialog.kind !== "closed"} onOpenChange={(open) => !open && c.close()}>
+    <Dialog open={dialog.kind !== "closed"} onOpenChange={(open) => !open && a.close()}>
       <DialogContent className="rounded-3xl">
         {dialog.kind === "create" &&
           nameForm("Create project", "Give your new architecture workspace a name.", "Create")}
@@ -76,14 +83,15 @@ export function ProjectDialogs({ controller: c }: ProjectDialogsProps) {
                 “{dialog.project.name}” will be deleted. This can’t be undone.
               </DialogDescription>
             </DialogHeader>
+            {errorText}
             <DialogFooter>
-              <Button variant="outline" onClick={c.close}>
+              <Button variant="outline" onClick={a.close}>
                 Cancel
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => void c.submit()}
-                disabled={c.isSubmitting}
+                onClick={() => void a.submit()}
+                disabled={a.isSubmitting}
               >
                 Delete
               </Button>

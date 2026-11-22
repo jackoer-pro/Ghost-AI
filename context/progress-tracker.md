@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–06 done; feature 07 (`context/feature-specs/07-wire-editor-home.md`) is next.
+- Features 01–07 done; feature 08 (`context/feature-specs/08-editor-workspace-shell.md`) is next.
 
 ## Completed
 
@@ -33,18 +33,20 @@ change.
 
 - Feature 06 project APIs (backend only, UI not wired): `app/api/projects/route.ts` (`GET` lists the signed-in user's owned projects newest first; `POST` creates one with `ownerId` = Clerk user ID, blank/missing name → `Untitled Project`, cuid IDs from the schema) and `app/api/projects/[projectId]/route.ts` (`PATCH` renames, `DELETE` deletes; both go through `checkOwner()` → `401` signed out, `404` unknown project, `403` not the owner). Names are validated by `parseProjectName()` in `lib/projects.ts` (trimmed, 1–100 chars, else `400`). Errors are always `{ error: string }`; success is `{ projects }` / `{ project }` (`201` on create) / `204` on delete. `tsc`, `eslint`, `npm run build` pass; on `next start` all four routes return `401` JSON when signed out and `/editor` still redirects. The `403`/`404` paths are not yet exercised live (needs two signed-in Clerk users).
 
+- Feature 07 editor home wired to the real API (branch `feature/07-wire-editor-home`): `app/editor/page.tsx` is now a server component that loads projects via `getEditorProjects()` in `lib/project-data.ts` (owned by Clerk user ID; shared = projects whose collaborators include the user's primary email, case-insensitive) inside `<Suspense>`, and passes both lists to the client `components/editor/editor-home-shell.tsx`. `hooks/use-project-actions.ts` replaces the mock `use-project-dialogs.ts`: create builds the room ID with `makeRoomId(name, randomSuffix())` (suffix fixed per dialog open), `POST`s `{ id, name }` and navigates to `/editor/{roomId}`; rename `PATCH`es and refreshes; delete `DELETE`s and redirects to `/editor` if it was the active room, otherwise refreshes. API errors show inside the dialog. Mock data removed from `lib/projects.ts` (now `ProjectSummary`, `parseProjectId`, `randomSuffix`, `makeRoomId`). Sidebar project names link to `/editor/{id}`. `POST /api/projects` accepts an optional `id` (validated slug, ≤ 80 chars), returns `409` if taken. `tsc`, `eslint`, `npm run build` pass; ID helpers checked with asserts; duplicate-ID → `P2002` checked against the real DB; signed-out `/editor` → 307 and `POST` → 401 on `next start`. Not yet clicked through signed in.
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Feature 07 wire editor home to the real API (`07-wire-editor-home.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Feature 08 workspace shell at `/editor/[roomId]` (`08-editor-workspace-shell.md`). Until it lands, creating a project or clicking one in the sidebar goes to a 404. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions
 
-- Feature 07 says the project ID and the Liveblocks room ID "should stay aligned" and that create builds the room ID from a slug + short unique suffix on the client. Feature 06 says `POST` uses the schema's cuid IDs. Either `POST` must accept a client-supplied ID (and validate/dedupe it), or the room ID is derived from the cuid. Decide before building 07.
+- Collaborator emails: the shared-projects lookup is case-insensitive, but the `[projectId, email]` unique constraint is case-sensitive. Feature 09 (share dialog) should lowercase emails before saving.
 
 - Hex values for border and primary/secondary/muted text tokens are still missing from the design reference; `--foreground`, `--muted-foreground`, `--border`, `--input` temporarily keep shadcn's dark oklch values.
 
@@ -66,6 +68,9 @@ change.
 - Prisma 7 `migrate dev` does not run `generate`; run `npx prisma generate` after each migration.
 
 - `proxy.ts` no longer runs `auth.protect()` on `/api/*`; each API handler calls `auth()` itself and returns JSON `401`/`403`. `auth.protect()` would answer an API call with a redirect or `404`, which breaks the spec's status codes. Every new API handler must do its own auth check.
+
+- Project ID = Liveblocks room ID (decided in feature 07, confirmed by feature 08's `/editor/[roomId]` route). The client builds it as `slug-xxxxxx` and sends it to `POST /api/projects`; the server validates the format and answers `409` on collision. If no `id` is sent the schema's cuid default is used, so feature 06's "no sequential IDs" rule still holds.
+- Project mutations refresh server data (`router.refresh()`) instead of patching client state, so the server-loaded lists stay the single source of truth.
 
 ## Session Notes
 
