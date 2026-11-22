@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–11 done; feature 12 shape panel (`context/feature-specs/12-shape-panel.md`) is next. `LIVEBLOCKS_SECRET_KEY` is still missing from `.env.local`, so the canvas can't connect yet.
+- Features 01–11 done; feature 12 shape panel (`context/feature-specs/12-shape-panel.md`) is next. `LIVEBLOCKS_SECRET_KEY` is now in `.env.local` (dev key, checked against the Liveblocks API); the canvas still needs a signed-in browser check.
 
 ## Completed
 
