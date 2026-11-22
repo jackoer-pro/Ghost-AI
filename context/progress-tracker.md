@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–07 done; feature 08 (`context/feature-specs/08-editor-workspace-shell.md`) is next.
+- Features 01–08 done; feature 09 (`context/feature-specs/09-share-dialog.md`) is next.
 
 ## Completed
 
@@ -35,13 +35,15 @@ change.
 
 - Feature 07 editor home wired to the real API (branch `feature/07-wire-editor-home`): `app/editor/page.tsx` is now a server component that loads projects via `getEditorProjects()` in `lib/project-data.ts` (owned by Clerk user ID; shared = projects whose collaborators include the user's primary email, case-insensitive) inside `<Suspense>`, and passes both lists to the client `components/editor/editor-home-shell.tsx`. `hooks/use-project-actions.ts` replaces the mock `use-project-dialogs.ts`: create builds the room ID with `makeRoomId(name, randomSuffix())` (suffix fixed per dialog open), `POST`s `{ id, name }` and navigates to `/editor/{roomId}`; rename `PATCH`es and refreshes; delete `DELETE`s and redirects to `/editor` if it was the active room, otherwise refreshes. API errors show inside the dialog. Mock data removed from `lib/projects.ts` (now `ProjectSummary`, `parseProjectId`, `randomSuffix`, `makeRoomId`). Sidebar project names link to `/editor/{id}`. `POST /api/projects` accepts an optional `id` (validated slug, ≤ 80 chars), returns `409` if taken. `tsc`, `eslint`, `npm run build` pass; ID helpers checked with asserts; duplicate-ID → `P2002` checked against the real DB; signed-out `/editor` → 307 and `POST` → 401 on `next start`. Not yet clicked through signed in.
 
+- Feature 08 workspace shell (branch `feature/08-editor-workspace-shell`, based on feature 07's branch): `app/editor/[roomId]/page.tsx` is a server component inside `<Suspense>`; signed out → `redirect("/sign-in")`, missing project or no access → `components/editor/access-denied.tsx` (lock icon, one message for both cases so project IDs aren't revealed, link back to `/editor`). `lib/project-access.ts` has `getCurrentIdentity()` (Clerk `userId` + primary email), `accessibleBy()` (owner OR collaborator email, case-insensitive) and `getProjectForUser()`. `lib/project-data.ts` now takes an `Identity` instead of calling Clerk itself. `components/editor/editor-home-shell.tsx` became `editor-shell.tsx`, shared by `/editor` and `/editor/[roomId]` (optional `project` prop). Navbar gets an optional `workspace` prop: project name in the center, `Share` button (no handler) and AI sidebar toggle. Sidebar highlights the active room (`activeProjectId`, `aria-current`). Workspace has a dark `bg-bg-base` canvas placeholder and a right AI panel placeholder (overlay on small screens, beside the canvas on `md+`). `tsc`, `eslint`, `npm run build` pass; access helper checked against the real DB for owner / collaborator with different email casing / stranger / missing project / user without email; signed-out `/editor/some-room` → 307 to sign-in. Not yet clicked through signed in.
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Feature 08 workspace shell at `/editor/[roomId]` (`08-editor-workspace-shell.md`). Until it lands, creating a project or clicking one in the sidebar goes to a 404. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Feature 09 share dialog (`09-share-dialog.md`): wire the navbar `Share` button, which has no handler yet. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions
