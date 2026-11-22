@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–09 done; feature 10 (`context/feature-specs/10-liveblocks-setup.md`) is next.
+- Features 01–10 done; feature 11 (`context/feature-specs/11-base-canvas.md`) is next. Needs `LIVEBLOCKS_SECRET_KEY` in `.env.local` before the canvas can connect.
 
 ## Completed
 
@@ -45,13 +45,16 @@ change.
 - Security review of features 06–09 (fixed): (1) collaborator access is granted by email, so `getCurrentIdentity()` now only returns a **verified** primary email; an unverified address can't claim an invite. (2) CSRF: `POST`/`PATCH` handlers read bodies via `readJsonBody()` in `lib/request.ts`, which requires `Content-Type: application/json` (`415` otherwise), so cross-site form posts are rejected. (3) Rename/delete/invite map "project deleted mid-request" Prisma errors (`P2025`/`P2003`) to `404` instead of `500`. (4) At most 50 collaborators per project (`400`), keeping the Clerk lookup to one page. Regression-tested against the real DB with a stubbed Clerk session. Build, `tsc`, `eslint --max-warnings 0` and `prisma validate` all clean.
 - Auth pages polish: `components/auth/auth-shell.tsx` uses the design tokens, the feature list has brand check marks, and a phone-width horizontal overflow is fixed (grid column `minmax(0,1fr)` + `min-w-0`; Clerk's card was pushing the page to 383px on a 360px screen). Checked in a real browser at 1280px and 375px; 0 console errors (only Clerk's dev-keys warning).
 
+- Feature 10 Liveblocks setup (branch `feature/10-liveblocks-setup`, based on feature 09's branch): `liveblocks.config.ts` types Presence (`cursor: {x,y} | null`, `thinking: boolean`) and UserMeta (`id` = Clerk user ID; `info`: `name`, optional `avatar`, `color`). `lib/liveblocks.ts` has `getLiveblocks()` (one Node client, created on first use and kept on `globalThis`, so `next build` doesn't need the secret) and `cursorColor(userId)` (string hash → one of the 7 vivid node-palette text colors). `POST /api/liveblocks-auth`: Clerk user required (`401`), body `{ room }` read through `readJsonBody()` (`415`/`400`), membership checked with `getProjectForUser()` (`403` for both missing project and non-member, since Liveblocks stops retrying on 403), `getOrCreateRoom(projectId, { defaultAccesses: [] })` (Liveblocks error → `502`, no token), then an access token for that room only with name (full name → username → email → "Anonymous"), avatar (only if the user uploaded one) and color. `lib/project-access.ts` gained `identityOf(user)` so the route checks access with one Clerk call. Spec fixes: `isThinking` → `thinking` (specs 19/24 use `thinking`), and `@liveblocks/node` was installed (the spec wrongly said all packages were present). `tsc`, `eslint --max-warnings 0`, `npm run build` pass; `cursorColor` checked with asserts (stable, all 7 colors used); route tested against the real DB with Clerk + Liveblocks stubbed (signed out, wrong content type, missing/non-string room, unknown project, owner with name + photo, collaborator with different email casing and no photo, unverified invited email, stranger, Liveblocks down); signed-out `POST` → `401` JSON on `next start`. Not tested against real Liveblocks (no secret key yet).
+
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Feature 10 Liveblocks setup (`10-liveblocks-setup.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Add `LIVEBLOCKS_SECRET_KEY` to `.env.local` (and the deploy env), then feature 11 base canvas (`11-base-canvas.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions
@@ -86,6 +89,8 @@ change.
 
 - Known, accepted security trade-offs: (a) spec 09's Clerk enrichment means a project owner can learn whether an email has an account (and its name/avatar) by inviting it; (b) no rate limiting on API routes yet; (c) owner-only routes answer `403` (not `404`) to signed-in strangers, as spec 06 requires, which reveals that a project ID exists. IDs carry a random suffix, which limits (c).
 - The project lives in OneDrive, which can turn `.next` build folders into read-only cloud placeholders and make `next build` fail with `EPERM`. Fix: delete the named `.next/...` folder (it's a rebuildable cache). Moving the project to `D:\Projects\` (per the global rules) avoids it.
+
+- Liveblocks auth uses access tokens, not ID tokens: membership is checked in our DB on every token request, so nothing has to be kept in sync with Liveblocks room permissions. Trade-off: removing a collaborator doesn't kick them out of a room they're already connected to; they lose access the next time their token is refreshed. Switch to ID tokens + `usersAccesses` if instant revocation is ever needed.
 
 ## Session Notes
 

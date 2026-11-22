@@ -9,7 +9,7 @@ Define:
 ### Presence
 
 - cursor position
-- `isThinking` boolean
+- `thinking` boolean (named `thinking`, not `isThinking`, to match specs 19 and 24, which read it)
 
 ### UserMeta
 
@@ -44,7 +44,9 @@ Return `403` for unauthorized project access.
 
 ## Dependencies
 
-All required Liveblocks packages are already installed.
+`@liveblocks/client` and `@liveblocks/react` were already installed; `@liveblocks/node` (server SDK for auth and rooms) was not and was added at the same version (3.25.2).
+
+The server needs `LIVEBLOCKS_SECRET_KEY` (starts with `sk_`) in `.env.local`.
 
 ## Check When Done
 

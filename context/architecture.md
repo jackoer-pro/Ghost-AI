@@ -35,7 +35,7 @@
 - Projects can include additional collaborators.
 - Only authenticated users can access protected routes. Pages are protected in `proxy.ts`; `/api/*` is excluded there and each handler checks `auth()` itself so it can return JSON `401`/`403`.
 - Only the owner or a collaborator can mutate project resources.
-- Liveblocks room tokens are issued only after verifying project membership.
+- Liveblocks room tokens are issued only after verifying project membership. `POST /api/liveblocks-auth` uses access tokens (`prepareSession` + `allow(projectId, ["*:write"])`) scoped to that one room; rooms are created private (`defaultAccesses: []`), so this route is the only way in. Membership lives in PostgreSQL only and is never copied into Liveblocks permissions.
 
 ## Starter System Designs
 

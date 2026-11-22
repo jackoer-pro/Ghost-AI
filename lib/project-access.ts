@@ -1,6 +1,6 @@
 import "server-only"
 
-import { auth, currentUser } from "@clerk/nextjs/server"
+import { auth, currentUser, type User } from "@clerk/nextjs/server"
 
 import { prisma } from "@/lib/prisma"
 import type { ProjectSummary } from "@/lib/projects"
@@ -15,11 +15,17 @@ export interface Identity {
 export async function getCurrentIdentity(): Promise<Identity | null> {
   const { userId } = await auth()
   if (!userId) return null
-  const primary = (await currentUser())?.primaryEmailAddress
+  const user = await currentUser()
+  return user ? identityOf(user) : { userId, email: null }
+}
+
+/** Identity from an already-fetched Clerk user (saves a second Clerk call). */
+export function identityOf(user: User): Identity {
+  const primary = user.primaryEmailAddress
   // Collaborator access is granted by email, so an unverified address must
   // never count: otherwise anyone could sign up with an invited address.
   const email = primary?.verification?.status === "verified" ? primary.emailAddress : null
-  return { userId, email }
+  return { userId: user.id, email }
 }
 
 /** Prisma filter: projects the identity owns or collaborates on (email match is case-insensitive). */
