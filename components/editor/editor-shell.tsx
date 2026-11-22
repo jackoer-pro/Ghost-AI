@@ -1,8 +1,9 @@
 "use client"
 
-import { LayoutTemplate, Sparkles, X } from "lucide-react"
+import { Sparkles, X } from "lucide-react"
 import { useState } from "react"
 
+import { CollaborativeCanvas } from "@/components/canvas/collaborative-canvas"
 import { EditorHome } from "@/components/editor/editor-home"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
@@ -59,10 +60,7 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
         />
 
         {project ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-            <LayoutTemplate className="size-8 text-copy-faint" aria-hidden />
-            <p className="text-copy-muted">The canvas for this project will appear here.</p>
-          </div>
+          <CollaborativeCanvas roomId={project.id} />
         ) : (
           <EditorHome onNewProject={actions.openCreate} />
         )}

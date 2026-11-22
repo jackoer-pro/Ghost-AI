@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–10 done; feature 11 (`context/feature-specs/11-base-canvas.md`) is next. Needs `LIVEBLOCKS_SECRET_KEY` in `.env.local` before the canvas can connect.
+- Features 01–11 done; feature 12 shape panel (`context/feature-specs/12-shape-panel.md`) is next. `LIVEBLOCKS_SECRET_KEY` is still missing from `.env.local`, so the canvas can't connect yet.
 
 ## Completed
 
@@ -47,6 +47,7 @@ change.
 
 - Feature 10 Liveblocks setup (branch `feature/10-liveblocks-setup`, based on feature 09's branch): `liveblocks.config.ts` types Presence (`cursor: {x,y} | null`, `thinking: boolean`) and UserMeta (`id` = Clerk user ID; `info`: `name`, optional `avatar`, `color`). `lib/liveblocks.ts` has `getLiveblocks()` (one Node client, created on first use and kept on `globalThis`, so `next build` doesn't need the secret) and `cursorColor(userId)` (string hash → one of the 7 vivid node-palette text colors). `POST /api/liveblocks-auth`: Clerk user required (`401`), body `{ room }` read through `readJsonBody()` (`415`/`400`), membership checked with `getProjectForUser()` (`403` for both missing project and non-member, since Liveblocks stops retrying on 403), `getOrCreateRoom(projectId, { defaultAccesses: [] })` (Liveblocks error → `502`, no token), then an access token for that room only with name (full name → username → email → "Anonymous"), avatar (only if the user uploaded one) and color. `lib/project-access.ts` gained `identityOf(user)` so the route checks access with one Clerk call. Spec fixes: `isThinking` → `thinking` (specs 19/24 use `thinking`), and `@liveblocks/node` was installed (the spec wrongly said all packages were present). `tsc`, `eslint --max-warnings 0`, `npm run build` pass; `cursorColor` checked with asserts (stable, all 7 colors used); route tested against the real DB with Clerk + Liveblocks stubbed (signed out, wrong content type, missing/non-string room, unknown project, owner with name + photo, collaborator with different email casing and no photo, unverified invited email, stranger, Liveblocks down); signed-out `POST` → `401` JSON on `next start`. Not tested against real Liveblocks (no secret key yet).
 
+- Feature 11 base canvas (branch `feature/10-liveblocks-setup`, not split out yet): installed `@liveblocks/react-flow` 3.25.2 (same version as the other Liveblocks packages), `@xyflow/react` 12 and `react-error-boundary`. `types/canvas.ts` has `NODE_SHAPES` / `NodeShape`, `CanvasNodeData` (`label`, `color` = fill hex, `shape`), `CanvasNode` (type `canvasNode`) and `CanvasEdge` (type `canvasEdge`). Node data is a `type`, not an `interface`, because React Flow needs `Record<string, unknown>`. The color palette (`NODE_COLORS`) is left for feature 15. `components/canvas/collaborative-canvas.tsx` (client) wraps `LiveblocksProvider` (`/api/liveblocks-auth`) → `RoomProvider` (room = project ID, presence `{ cursor: null, thinking: false }`) → `ErrorBoundary` → `ClientSideSuspense` ("Connecting to canvas…") → React Flow fed by `useLiveblocksFlow({ suspense: true })` with empty initial nodes and edges, loose connections, `fitView`, dark color mode, dot background on `--bg-base`, and a MiniMap styled with tokens. A `ROOM_CONNECTION_ERROR` (auth 401/403, room denied) is caught with `useErrorListener` and rethrown during render, so it reaches the error fallback (the room otherwise just stops connecting with no error). "Try again" reloads the page because Liveblocks stops retrying after an auth failure. The workspace page stays a server component; `editor-shell.tsx` renders the canvas in place of the placeholder. `tsc`, `eslint --max-warnings 0`, `npm run build` pass. Not run in a browser: needs a signed-in session and the Liveblocks secret.
 
 ## In Progress
 
@@ -54,7 +55,7 @@ change.
 
 ## Next Up
 
-- Add `LIVEBLOCKS_SECRET_KEY` to `.env.local` (and the deploy env), then feature 11 base canvas (`11-base-canvas.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Add `LIVEBLOCKS_SECRET_KEY` to `.env.local` (and the deploy env), then open a project and check the canvas connects, syncs between two tabs, and shows the error fallback for a non-member. Then feature 12 shape panel (`12-shape-panel.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions
@@ -91,6 +92,8 @@ change.
 - The project lives in OneDrive, which can turn `.next` build folders into read-only cloud placeholders and make `next build` fail with `EPERM`. Fix: delete the named `.next/...` folder (it's a rebuildable cache). Moving the project to `D:\Projects\` (per the global rules) avoids it.
 
 - Liveblocks auth uses access tokens, not ID tokens: membership is checked in our DB on every token request, so nothing has to be kept in sync with Liveblocks room permissions. Trade-off: removing a collaborator doesn't kick them out of a room they're already connected to; they lose access the next time their token is refreshed. Switch to ID tokens + `usersAccesses` if instant revocation is ever needed.
+- The Liveblocks room wraps only the canvas area (`CollaborativeCanvas`), not the navbar or sidebars. Spec 19 also puts presence avatars inside the canvas area, so they fit within this boundary.
+- Auth-route 5xx responses (missing secret, Liveblocks `502`) are retried by Liveblocks with backoff and fire no error event, so the canvas shows "Connecting…" until the server recovers. Only 401/403 show the error fallback. Add a `useStatus`-based "still reconnecting" hint if long outages become a problem (see the `handling-unstable-connections` Liveblocks reference).
 
 ## Session Notes
 
