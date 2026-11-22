@@ -28,6 +28,23 @@ All colors are defined as CSS custom properties in `globals.css` and mapped to T
 
 Tailwind utility names map to these variables. Use `bg-base`, `bg-surface`, `text-copy-primary`, `text-copy-muted`, `border-surface-border`, `text-brand`, `bg-accent-dim`, etc.
 
+Full utility list (defined in `app/globals.css` `@theme inline`):
+
+| Utility suffix          | Variable                |
+| ----------------------- | ----------------------- |
+| `base`, `surface`, `elevated`, `subtle` | `--bg-*`    |
+| `surface-border`        | `--border-default`      |
+| `surface-border-subtle` | `--border-subtle`       |
+| `copy-primary` / `copy-secondary` / `copy-muted` / `copy-faint` | `--text-*` |
+| `brand`                 | `--accent-primary`      |
+| `accent-dim`            | `--accent-primary-dim`  |
+| `ai`, `ai-text`         | `--accent-ai`, `--accent-ai-text` |
+| `ai-dim`                | `--accent-ai-dim` (`rgba(100, 87, 249, 0.14)`, derived from the AI accent for toggled AI controls) |
+
+shadcn's semantic tokens (`--foreground`, `--muted-foreground`, `--border`, `--input`, …) point at these variables, so `components/ui/*` follows the same palette.
+
+Role badges: owner = `bg-accent-dim text-brand`, collaborator = `bg-subtle text-copy-secondary` (`components/editor/role-badge.tsx`).
+
 ## Typography
 
 | Role      | Font       | CSS Variable        |

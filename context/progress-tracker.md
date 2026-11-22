@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–08 done; feature 09 (`context/feature-specs/09-share-dialog.md`) is next.
+- Features 01–09 done; feature 10 (`context/feature-specs/10-liveblocks-setup.md`) is next.
 
 ## Completed
 
@@ -37,20 +37,27 @@ change.
 
 - Feature 08 workspace shell (branch `feature/08-editor-workspace-shell`, based on feature 07's branch): `app/editor/[roomId]/page.tsx` is a server component inside `<Suspense>`; signed out → `redirect("/sign-in")`, missing project or no access → `components/editor/access-denied.tsx` (lock icon, one message for both cases so project IDs aren't revealed, link back to `/editor`). `lib/project-access.ts` has `getCurrentIdentity()` (Clerk `userId` + primary email), `accessibleBy()` (owner OR collaborator email, case-insensitive) and `getProjectForUser()`. `lib/project-data.ts` now takes an `Identity` instead of calling Clerk itself. `components/editor/editor-home-shell.tsx` became `editor-shell.tsx`, shared by `/editor` and `/editor/[roomId]` (optional `project` prop). Navbar gets an optional `workspace` prop: project name in the center, `Share` button (no handler) and AI sidebar toggle. Sidebar highlights the active room (`activeProjectId`, `aria-current`). Workspace has a dark `bg-bg-base` canvas placeholder and a right AI panel placeholder (overlay on small screens, beside the canvas on `md+`). `tsc`, `eslint`, `npm run build` pass; access helper checked against the real DB for owner / collaborator with different email casing / stranger / missing project / user without email; signed-out `/editor/some-room` → 307 to sign-in. Not yet clicked through signed in.
 
+- Feature 09 share dialog (branch `feature/09-share-dialog`, based on feature 08's branch): API `GET/POST /api/projects/[projectId]/collaborators` (list for owner or collaborator, invite owner-only) and `DELETE /api/projects/[projectId]/collaborators/[collaboratorId]` (owner-only, scoped to the project). Invites are validated by `parseEmail()` and stored lowercase; inviting yourself → `400`, duplicate → `409`. `lib/collaborators.ts` enriches emails with Clerk name + avatar via one `users.getUserList({ emailAddress })` call; unknown emails or a Clerk failure fall back to email only. No local user table. UI: `hooks/use-share-dialog.ts` (loads the list when opened, invite/remove, copy link with 2 s `Copied!`), `components/editor/share-dialog.tsx` (owners get the invite form and remove buttons; collaborators see the list read-only). The navbar `Share` button opens it. Refactors: the owner/member API guard moved into `authorizeProject()` in `lib/project-access.ts` (used by the project and collaborator routes); the fetch helper moved to `lib/fetch-json.ts` (used by both hooks). `tsc`, `eslint`, `npm run build` pass; the route handlers were tested against the real DB with a stubbed Clerk session (signed out, stranger, owner, collaborator; validation, lowercase, self-invite, duplicate, enrichment + fallback, collaborator `403`s, cross-project remove `404`).
+- Feature 08 follow-up: `Share` is icon-only below `sm` so the navbar fits project name + actions + avatar at phone width.
+
+- UI polish pass on features 04–09 against `context/ui-context.md`: added the documented tokens (`--border-default`, `--border-subtle`, `--text-primary/secondary/muted`) and utility names (`bg-base`, `bg-surface`, `bg-elevated`, `bg-subtle`, `border-surface-border`, `text-copy-*`, `text-brand`, `bg-accent-dim`, `text-ai-text`, `bg-ai-dim`) to `globals.css`, and pointed shadcn's `--foreground`, `--muted-foreground`, `--border`, `--input` at them. Project sidebar and AI panel are now floating overlays (inset, `rounded-2xl`, `bg-surface/85` + backdrop blur, subtle border); the AI panel slides over the canvas from the right instead of sitting beside it. Icon buttons use `size-5` icons; empty states use `size-8` feature icons. Owner/collaborator UI: `components/editor/role-badge.tsx` (Owner = brand accent, Collaborator = neutral) next to the project name in the navbar; shared projects marked with a `Users` icon and tab counts in the sidebar; share dialog lists the owner first (name/avatar from Clerk, via `getOwnerProfile()`; the collaborators `GET` now also returns `owner`), marks "(you)", shows collaborators a lock notice instead of the invite form, and has loading skeletons. Dialogs use `p-6` / `rounded-3xl` / `bg-elevated`, with footers adjusted via `className` (shadcn file untouched). `tsc`, `eslint`, `npm run build` pass; collaborators `GET` re-tested for the owner profile and the Clerk-failure fallback. Not yet checked visually signed in.
+
+- Security review of features 06–09 (fixed): (1) collaborator access is granted by email, so `getCurrentIdentity()` now only returns a **verified** primary email; an unverified address can't claim an invite. (2) CSRF: `POST`/`PATCH` handlers read bodies via `readJsonBody()` in `lib/request.ts`, which requires `Content-Type: application/json` (`415` otherwise), so cross-site form posts are rejected. (3) Rename/delete/invite map "project deleted mid-request" Prisma errors (`P2025`/`P2003`) to `404` instead of `500`. (4) At most 50 collaborators per project (`400`), keeping the Clerk lookup to one page. Regression-tested against the real DB with a stubbed Clerk session. Build, `tsc`, `eslint --max-warnings 0` and `prisma validate` all clean.
+- Auth pages polish: `components/auth/auth-shell.tsx` uses the design tokens, the feature list has brand check marks, and a phone-width horizontal overflow is fixed (grid column `minmax(0,1fr)` + `min-w-0`; Clerk's card was pushing the page to 383px on a 360px screen). Checked in a real browser at 1280px and 375px; 0 console errors (only Clerk's dev-keys warning).
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Feature 09 share dialog (`09-share-dialog.md`): wire the navbar `Share` button, which has no handler yet. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Feature 10 Liveblocks setup (`10-liveblocks-setup.md`). Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions
 
-- Collaborator emails: the shared-projects lookup is case-insensitive, but the `[projectId, email]` unique constraint is case-sensitive. Feature 09 (share dialog) should lowercase emails before saving.
+- Signed-in UI not yet checked visually for features 04–09. Testing it automatically needs either Clerk test users (creating them in the dev instance was blocked by the auto-mode safety check) or a manual run-through.
 
-- Hex values for border and primary/secondary/muted text tokens are still missing from the design reference; `--foreground`, `--muted-foreground`, `--border`, `--input` temporarily keep shadcn's dark oklch values.
 
 ## Architecture Decisions
 
@@ -73,6 +80,12 @@ change.
 
 - Project ID = Liveblocks room ID (decided in feature 07, confirmed by feature 08's `/editor/[roomId]` route). The client builds it as `slug-xxxxxx` and sends it to `POST /api/projects`; the server validates the format and answers `409` on collision. If no `id` is sent the schema's cuid default is used, so feature 06's "no sequential IDs" rule still holds.
 - Project mutations refresh server data (`router.refresh()`) instead of patching client state, so the server-loaded lists stay the single source of truth.
+
+- Collaborator emails are stored lowercase (`parseEmail()`), so the `[projectId, email]` unique constraint can't be bypassed by case. Lookups stay case-insensitive.
+- API guard convention: `const auth = await authorizeProject(id, "owner" | "member"); if (auth instanceof Response) return auth`. Member access answers `404` for non-members (doesn't reveal the project exists); owner-only answers `403` for collaborators and strangers.
+
+- Known, accepted security trade-offs: (a) spec 09's Clerk enrichment means a project owner can learn whether an email has an account (and its name/avatar) by inviting it; (b) no rate limiting on API routes yet; (c) owner-only routes answer `403` (not `404`) to signed-in strangers, as spec 06 requires, which reveals that a project ID exists. IDs carry a random suffix, which limits (c).
+- The project lives in OneDrive, which can turn `.next` build folders into read-only cloud placeholders and make `next build` fail with `EPERM`. Fix: delete the named `.next/...` folder (it's a rebuildable cache). Moving the project to `D:\Projects\` (per the global rules) avoids it.
 
 ## Session Notes
 

@@ -25,6 +25,28 @@ export function parseProjectId(value: unknown): string | null {
     : null
 }
 
+/** A person as shown in the share dialog (name/avatar come from Clerk when available). */
+export interface PersonView {
+  email: string | null
+  name: string | null
+  imageUrl: string | null
+}
+
+/** A collaborator row: always has an email, plus its DB id for removal. */
+export interface CollaboratorView extends PersonView {
+  id: string
+  email: string
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Validates an untrusted email and lowercases it (emails are stored lowercase), or null. */
+export function parseEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const email = value.trim().toLowerCase()
+  return email.length <= 254 && EMAIL_PATTERN.test(email) ? email : null
+}
+
 /** "My Cool App!" → "my-cool-app". Strips accents, collapses non-alphanumerics to single dashes. */
 export function toSlug(name: string): string {
   return name

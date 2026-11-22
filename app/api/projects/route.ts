@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server"
 import { Prisma } from "@/lib/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import { parseProjectId, parseProjectName } from "@/lib/projects"
+import { readJsonBody } from "@/lib/request"
 
 export async function GET() {
   const { userId } = await auth()
@@ -19,7 +20,8 @@ export async function POST(req: Request) {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = ((await req.json().catch(() => null)) ?? {}) as { name?: unknown; id?: unknown }
+  const body = await readJsonBody(req)
+  if (body instanceof Response) return body
 
   // Missing or blank name → default; anything else must be a valid name.
   const raw = body.name
