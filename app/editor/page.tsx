@@ -1,11 +1,15 @@
+import { redirect } from "next/navigation"
 import { Suspense } from "react"
 
-import { EditorHomeShell } from "@/components/editor/editor-home-shell"
+import { EditorShell } from "@/components/editor/editor-shell"
+import { getCurrentIdentity } from "@/lib/project-access"
 import { getEditorProjects } from "@/lib/project-data"
 
 async function EditorHomeWithProjects() {
-  const { owned, shared } = await getEditorProjects()
-  return <EditorHomeShell owned={owned} shared={shared} />
+  const identity = await getCurrentIdentity()
+  if (!identity) redirect("/sign-in")
+  const { owned, shared } = await getEditorProjects(identity)
+  return <EditorShell owned={owned} shared={shared} />
 }
 
 // Server component: projects are loaded here, not fetched on the client.

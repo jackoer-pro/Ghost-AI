@@ -1,7 +1,6 @@
 import "server-only"
 
-import { auth, currentUser } from "@clerk/nextjs/server"
-
+import type { Identity } from "@/lib/project-access"
 import { prisma } from "@/lib/prisma"
 import type { ProjectSummary } from "@/lib/projects"
 
@@ -10,12 +9,8 @@ export interface EditorProjects {
   shared: ProjectSummary[]
 }
 
-/** Projects the signed-in user owns, and projects shared with their primary email. */
-export async function getEditorProjects(): Promise<EditorProjects> {
-  const { userId } = await auth()
-  if (!userId) return { owned: [], shared: [] }
-
-  const email = (await currentUser())?.primaryEmailAddress?.emailAddress
+/** Projects the user owns, and projects shared with their primary email. */
+export async function getEditorProjects({ userId, email }: Identity): Promise<EditorProjects> {
   const select = { id: true, name: true } as const
   const orderBy = { createdAt: "desc" } as const
 

@@ -11,6 +11,8 @@ type ProjectSidebarProps = {
   onClose: () => void
   owned: ProjectSummary[]
   shared: ProjectSummary[]
+  /** The open workspace's project, highlighted in the list. */
+  activeProjectId?: string
   onCreate: () => void
   onRename: (project: ProjectSummary) => void
   onDelete: (project: ProjectSummary) => void
@@ -23,6 +25,7 @@ export function ProjectSidebar({
   onClose,
   owned,
   shared,
+  activeProjectId,
   onCreate,
   onRename,
   onDelete,
@@ -35,9 +38,16 @@ export function ProjectSidebar({
         {items.map((project) => (
           <li
             key={project.id}
-            className="group flex items-center gap-1 rounded-xl px-2 py-1.5 hover:bg-sidebar-accent"
+            className={cn(
+              "group flex items-center gap-1 rounded-xl px-2 py-1.5 hover:bg-sidebar-accent",
+              project.id === activeProjectId && "bg-sidebar-accent text-sidebar-accent-foreground"
+            )}
           >
-            <Link href={`/editor/${project.id}`} className="min-w-0 flex-1 truncate">
+            <Link
+              href={`/editor/${project.id}`}
+              aria-current={project.id === activeProjectId ? "page" : undefined}
+              className="min-w-0 flex-1 truncate"
+            >
               {project.name}
             </Link>
             {project.isOwner && (
