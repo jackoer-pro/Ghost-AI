@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation"
 import { useState } from "react"
 
+import { fetchJson } from "@/lib/fetch-json"
 import { makeRoomId, randomSuffix, toSlug, type ProjectSummary } from "@/lib/projects"
 
 type DialogState =
@@ -10,18 +11,6 @@ type DialogState =
   | { kind: "create" }
   | { kind: "rename"; project: ProjectSummary }
   | { kind: "delete"; project: ProjectSummary }
-
-async function send(url: string, method: string, body?: object): Promise<void> {
-  const res = await fetch(url, {
-    method,
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    const data = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(data?.error ?? `Request failed (${res.status})`)
-  }
-}
 
 // Dialog state + project mutations against /api/projects. The server data is
 // the source of truth: after a change we refresh (or navigate) instead of
@@ -62,15 +51,15 @@ export function useProjectActions() {
     setError(null)
     try {
       if (dialog.kind === "create") {
-        await send("/api/projects", "POST", { id: roomId, name: trimmed })
+        await fetchJson("/api/projects", { method: "POST", body: { id: roomId, name: trimmed } })
         setDialog({ kind: "closed" })
         router.push(`/editor/${roomId}`)
       } else if (dialog.kind === "rename") {
-        await send(`/api/projects/${dialog.project.id}`, "PATCH", { name: trimmed })
+        await fetchJson(`/api/projects/${dialog.project.id}`, { method: "PATCH", body: { name: trimmed } })
         setDialog({ kind: "closed" })
         router.refresh()
       } else {
-        await send(`/api/projects/${dialog.project.id}`, "DELETE")
+        await fetchJson(`/api/projects/${dialog.project.id}`, { method: "DELETE" })
         setDialog({ kind: "closed" })
         if (dialog.project.id === activeRoomId) router.push("/editor")
         else router.refresh()
