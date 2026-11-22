@@ -104,7 +104,7 @@ Small white circular handles, hidden by default, revealed on node hover. Appear 
 
 ### Canvas Background
 
-React Flow `<Background>` component. Canvas sits on the base background color.
+React Flow `<Background>` component with the dot pattern (`--border-subtle` dots on `--bg-base`). React Flow runs with `colorMode="dark"`. The MiniMap sits on `--bg-surface` with a `rounded-xl` subtle border, and its node colors come from each node's `data.color`.
 
 ## Component Library
 
