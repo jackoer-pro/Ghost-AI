@@ -2,13 +2,29 @@
 
 import { ClientSideSuspense, LiveblocksProvider, RoomProvider, useErrorListener } from "@liveblocks/react/suspense"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
-import { Background, BackgroundVariant, ConnectionMode, MiniMap, ReactFlow } from "@xyflow/react"
+import {
+  Background,
+  BackgroundVariant,
+  ConnectionMode,
+  MarkerType,
+  MiniMap,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  type DefaultEdgeOptions,
+  type EdgeTypes,
+  type NodeTypes,
+} from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Loader2, Unplug } from "lucide-react"
-import { useState } from "react"
+import { useState, type DragEvent } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 
+import { CanvasEdge as CanvasEdgeView } from "@/components/canvas/canvas-edge"
+import { CanvasNode as CanvasNodeView } from "@/components/canvas/canvas-node"
+import { ShapePanel } from "@/components/canvas/shape-panel"
 import { Button } from "@/components/ui/button"
+import { createShapeNode, parseShapeDragPayload, SHAPE_DRAG_TYPE } from "@/lib/shape-drag"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 
 interface CollaborativeCanvasProps {
@@ -25,7 +41,9 @@ export function CollaborativeCanvas({ roomId }: CollaborativeCanvasProps) {
         <ErrorBoundary fallback={<CanvasError />}>
           <ConnectionErrorGuard />
           <ClientSideSuspense fallback={<CanvasLoading />}>
-            <Flow />
+            <ReactFlowProvider>
+              <Flow />
+            </ReactFlowProvider>
           </ClientSideSuspense>
         </ErrorBoundary>
       </RoomProvider>
@@ -33,34 +51,77 @@ export function CollaborativeCanvas({ roomId }: CollaborativeCanvasProps) {
   )
 }
 
+// Outside the component so React Flow doesn't see a new object each render.
+const nodeTypes: NodeTypes = { canvasNode: CanvasNodeView }
+const edgeTypes: EdgeTypes = { canvasEdge: CanvasEdgeView }
+// React Flow merges these into every new connection before calling onConnect.
+const defaultEdgeOptions: DefaultEdgeOptions = {
+  type: "canvasEdge",
+  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--edge-color)", width: 18, height: 18 },
+}
+
+// Never zoom in past 100% when fitting a small diagram.
+const fitViewOptions = { maxZoom: 1 }
+
 function Flow() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<
-    CanvasNode,
-    CanvasEdge
-  >({ suspense: true, nodes: { initial: [] }, edges: { initial: [] } })
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<CanvasNode, CanvasEdge>(
+    { suspense: true, nodes: { initial: [] }, edges: { initial: [] } },
+  )
+  const { screenToFlowPosition } = useReactFlow()
+  // Fit only when the room already had nodes on load. In an empty room React Flow would wait for
+  // the first dropped node and zoom in on it (to maxZoom 2), so drops would land on top of each other.
+  const [fitOnLoad] = useState(nodes.length > 0)
+
+  function onDragOver(event: DragEvent) {
+    if (!event.dataTransfer.types.includes(SHAPE_DRAG_TYPE)) return
+    event.preventDefault() // allows the drop
+    event.dataTransfer.dropEffect = "copy"
+  }
+
+  function onDrop(event: DragEvent) {
+    const payload = parseShapeDragPayload(event.dataTransfer.getData(SHAPE_DRAG_TYPE))
+    if (!payload) return
+    event.preventDefault()
+    const at = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    onNodesChange([{ type: "add", item: createShapeNode(payload, at) }])
+  }
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      onDelete={onDelete}
-      connectionMode={ConnectionMode.Loose}
-      fitView
-      colorMode="dark"
-    >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="var(--border-subtle)" bgColor="var(--bg-base)" />
-      <MiniMap<CanvasNode>
-        pannable
-        zoomable
-        bgColor="var(--bg-surface)"
-        maskColor="color-mix(in srgb, var(--bg-base) 60%, transparent)"
-        nodeColor={(node) => node.data.color}
-        className="overflow-hidden rounded-xl border border-surface-border"
-      />
-    </ReactFlow>
+    <div className="relative size-full" onDragOver={onDragOver} onDrop={onDrop}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onDelete={onDelete}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
+        connectionMode={ConnectionMode.Loose}
+        fitView={fitOnLoad}
+        fitViewOptions={fitViewOptions}
+        colorMode="dark"
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1.5}
+          color="var(--border-subtle)"
+          bgColor="var(--bg-base)"
+        />
+        <MiniMap<CanvasNode>
+          pannable
+          zoomable
+          bgColor="var(--bg-surface)"
+          maskColor="color-mix(in srgb, var(--bg-base) 60%, transparent)"
+          nodeColor={(node) => node.data.color}
+          // Hidden on phones: it would sit under the bottom-center shape panel.
+          className="overflow-hidden rounded-xl border border-surface-border max-sm:hidden"
+        />
+      </ReactFlow>
+      <ShapePanel />
+    </div>
   )
 }
 

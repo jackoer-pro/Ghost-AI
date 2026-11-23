@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useState } from "react"
 
 import { fetchJson } from "@/lib/fetch-json"
-import { makeRoomId, randomSuffix, toSlug, type ProjectSummary } from "@/lib/projects"
+import { makeRoomId, parseProjectName, randomSuffix, type ProjectSummary } from "@/lib/projects"
 
 type DialogState =
   | { kind: "closed" }
@@ -42,7 +42,8 @@ export function useProjectActions() {
 
   const trimmed = name.trim()
   const roomId = makeRoomId(trimmed, suffix)
-  const canSubmitName = toSlug(trimmed) !== ""
+  // Same rule as the server. Names without Latin letters are fine: makeRoomId falls back to "untitled-project".
+  const canSubmitName = parseProjectName(trimmed) !== null
 
   const submit = async () => {
     if (dialog.kind === "closed") return

@@ -60,7 +60,8 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
         />
 
         {project ? (
-          <CollaborativeCanvas roomId={project.id} />
+          // Keyed so switching projects resets the room's error/loading state.
+          <CollaborativeCanvas key={project.id} roomId={project.id} />
         ) : (
           <EditorHome onNewProject={actions.openCreate} />
         )}

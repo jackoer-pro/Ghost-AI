@@ -78,7 +78,8 @@ export function ShareDialog({ share: s, projectName, isOwner }: ShareDialogProps
             People with access
           </h3>
           {s.collaborators === null ? (
-            <ul className="grid gap-1" aria-busy>
+            // A failed load shows the error above instead of an endless skeleton.
+            !s.error && <ul className="grid gap-1" aria-busy>
               {[0, 1].map((i) => (
                 <li key={i} className="flex items-center gap-3 px-2 py-1.5">
                   <span className="size-8 animate-pulse rounded-full bg-subtle" />

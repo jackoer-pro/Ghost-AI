@@ -93,6 +93,7 @@
     --accent-ai: #6457f9;
     --accent-ai-text: #8b82ff;
     --accent-ai-dim: rgba(100, 87, 249, 0.14);
+    --edge-color: #f8fafc;
     --state-error: #ff4d4f;
     --state-success: #34d399;
     --state-warning: #fbbf24;
@@ -142,4 +143,30 @@
   html {
     @apply font-sans;
     }
+}
+/* Canvas: connection handles (hidden until the node is hovered) and custom edges.
+   Selectors are prefixed with .react-flow so they beat @xyflow/react's own styles. */
+.react-flow .canvas-handle.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--text-primary);
+  border: 1.5px solid var(--bg-base);
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.react-flow .canvas-node:hover .canvas-handle,
+.react-flow .canvas-handle.connectingfrom,
+.react-flow .canvas-handle.connectingto {
+  opacity: 1;
+}
+.react-flow .react-flow__edge .canvas-edge.react-flow__edge-path {
+  stroke: var(--edge-color);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.55;
+  transition: opacity 150ms;
+}
+.react-flow .react-flow__edge:hover .canvas-edge.react-flow__edge-path,
+.react-flow .react-flow__edge .canvas-edge.is-selected.react-flow__edge-path {
+  opacity: 1;
 }
