@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–13 and 16 done; feature 14 node editing (`context/feature-specs/14-node-editing.md`) is next, then 15 and 17. `LIVEBLOCKS_SECRET_KEY` is now in `.env.local` (dev key, checked against the Liveblocks API); the canvas still needs a signed-in browser check.
+- Features 01–14 and 16 done; feature 15 is next, then 17. `LIVEBLOCKS_SECRET_KEY` is now in `.env.local` (dev key, checked against the Liveblocks API); the canvas still needs a signed-in browser check.
 
 ## Completed
 
@@ -57,6 +57,7 @@ change.
 - Canvas fix found in the browser: with `fitView` on an empty room, React Flow waited for the first dropped node and zoomed in on it (2×), so later drops overlapped. Now `fitView` only runs when the room already has nodes on load, with `maxZoom: 1`.
 - Browser check of features 11–13 and 16 (dev server + a throwaway Clerk test user `canvas-qa+clerk_test@example.com`, signed up with Clerk's test code): project create → canvas connects to real Liveblocks; all six shapes drop at their default sizes, the SVG shapes render, and each node has 4 handles (hidden at rest, shown on hover); handle-to-handle drags create `canvasEdge` edges with arrows, dimmed at rest and bright on hover (from 6px off the line); label edit saves on Enter, Escape and blur, Backspace inside the input doesn't delete the edge, and nodes, edges and labels survive a reload; a second tab receives a newly dropped node live; an unknown room shows the access-denied page; 0 console errors. The two test projects were deleted afterwards; the Clerk test user still exists in the dev instance.
 - Review of features 01–12, fixes: (1) project names without Latin letters (e.g. "日本語", "!!!") couldn't be created or renamed, because the client required the name to slugify to something; it now uses the server's rule (`parseProjectName`), and the room ID falls back to `untitled-project-xxxxxx` (checked in the browser). (2) `CollaborativeCanvas` is keyed by project ID, so switching projects from the sidebar after a room error no longer keeps showing the error fallback. (3) The share dialog no longer shows an endless loading skeleton when the collaborator list fails to load; the error message shows instead. API routes, access checks, Liveblocks auth and the hooks were re-read with no other issues found. `tsc`, `eslint --max-warnings 0` and `npm run build` pass.
+- Feature 14 node editing (2026-11-23): `canvas-node.tsx` renders React Flow's `NodeResizer` on the selected node (hidden while editing), min 80×40, styled in `globals.css` (`.canvas-resize-line` = `--border-subtle` outline, `.canvas-resize-handle` = 7px `--bg-elevated` squares with a `--text-secondary` border). Resizing emits `dimensions` changes with `setAttributes`, which `@liveblocks/react-flow` writes to the synced node `width`/`height`. Double-clicking the label row opens a `textarea` laid exactly over the label: the label `span` stays rendered (invisible) so it keeps sizing the box, so the layout doesn't shift. Placeholder "Label" in `--text-faint` shows in the same spot when the label is empty. Each keystroke calls `updateNodeData` (→ `onNodesChange` "replace" → Liveblocks), so collaborators see typing live. Blur or `Escape` closes editing (no revert, per spec). The textarea has `nodrag nopan nowheel`. Bug found while reviewing: React Flow's zoom filter doesn't skip nodes, so double-clicking a node also zoomed the canvas in. The node body now has `nopan`, which the filter rejects; node dragging only checks `nodrag`, so it still works. `NodeShapeBody`'s label wrapper is now `w-full`, so the whole center row takes the double-click; the shapes look the same. `tsc` and `eslint --max-warnings 0` pass, and `npm run build` passed before the final className-only `nopan` edit (the rebuild hit an `EPERM` on `.next` held by a running dev server). Not yet checked in a browser.
 
 ## In Progress
 
@@ -64,7 +65,7 @@ change.
 
 ## Next Up
 
-- Add `LIVEBLOCKS_SECRET_KEY` to the deploy env, then feature 14 node editing (`14-node-editing.md`). Spec 14 adds double-click label editing on nodes; React Flow zooms in when the empty canvas is double-clicked (its default), which is fine, but double-clicks inside nodes need `nodrag nopan`, like the edge label. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Add `LIVEBLOCKS_SECRET_KEY` to the deploy env, check feature 14 in the browser (resize handles, double-click edit, Escape/blur, no zoom on node double-click), then feature 15. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions

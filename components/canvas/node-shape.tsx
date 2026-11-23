@@ -105,7 +105,7 @@ export function NodeShapeBody({ shape, color, selected = false, className, child
         </svg>
       ) : null}
       {/* Above the absolutely positioned SVG. */}
-      <div className="relative min-w-0">{children}</div>
+      <div className="relative w-full min-w-0">{children}</div>
     </div>
   )
 }

@@ -1,20 +1,75 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react"
+import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react"
+import { useState, type KeyboardEvent } from "react"
 
 import { NodeShapeBody } from "@/components/canvas/node-shape"
+import { cn } from "@/lib/utils"
 import type { CanvasNode as CanvasNodeType } from "@/types/canvas"
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 
-export function CanvasNode({ data, selected }: NodeProps<CanvasNodeType>) {
+// Smallest size a node can be resized to; below this the label no longer fits any shape.
+const MIN_WIDTH = 80
+const MIN_HEIGHT = 40
+
+const PLACEHOLDER = "Label"
+
+export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
+  const { updateNodeData } = useReactFlow<CanvasNodeType>()
+  const [editing, setEditing] = useState(false)
+  const label = data.label
+
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Escape") event.currentTarget.blur() // blur closes editing
+  }
+
   return (
-    <div className="canvas-node size-full">
-      <NodeShapeBody shape={data.shape} color={data.color} selected={selected}>
-        <span className="block text-center text-sm break-words text-copy-primary">{data.label}</span>
-      </NodeShapeBody>
-      {/* All handles are `source`: with ConnectionMode.Loose any handle can connect to any other. */}
-      {HANDLE_SIDES.map((side) => (
-        <Handle key={side} id={side} type="source" position={side} className="canvas-handle" />
-      ))}
-    </div>
+    <>
+      {/* Resizing emits "dimensions" changes through onNodesChange, i.e. the Liveblocks-synced node state. */}
+      <NodeResizer
+        isVisible={selected && !editing}
+        minWidth={MIN_WIDTH}
+        minHeight={MIN_HEIGHT}
+        handleClassName="canvas-resize-handle"
+        lineClassName="canvas-resize-line"
+      />
+      {/* nopan: React Flow's zoom filter would otherwise zoom the canvas in on a node double-click.
+          Node dragging only checks `nodrag`, so it still works. */}
+      <div className="canvas-node nopan size-full">
+        <NodeShapeBody shape={data.shape} color={data.color} selected={selected}>
+          <div className="relative" onDoubleClick={() => setEditing(true)}>
+            {/* Always rendered so it sizes the box: the textarea sits exactly on top of it, no layout shift.
+                The trailing space keeps a final newline's empty line visible. */}
+            <span
+              className={cn(
+                "block text-center text-sm whitespace-pre-wrap break-words select-none",
+                label ? "text-copy-primary" : "text-copy-faint",
+                editing && "invisible",
+              )}
+            >
+              {label ? label + (label.endsWith("\n") ? " " : "") : PLACEHOLDER}
+            </span>
+            {editing ? (
+              <textarea
+                autoFocus
+                value={label}
+                placeholder={PLACEHOLDER}
+                // Every keystroke goes through onNodesChange ("replace"), so collaborators see it live.
+                onChange={(event) => updateNodeData(id, { label: event.target.value })}
+                onFocus={(event) => event.currentTarget.setSelectionRange(label.length, label.length)}
+                onBlur={() => setEditing(false)}
+                onKeyDown={onKeyDown}
+                aria-label="Node label"
+                // nodrag/nopan/nowheel: React Flow ignores these pointer and wheel events for drag, pan and zoom.
+                className="nodrag nopan nowheel absolute inset-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-center text-sm whitespace-pre-wrap break-words text-copy-primary outline-none placeholder:text-copy-faint"
+              />
+            ) : null}
+          </div>
+        </NodeShapeBody>
+        {/* All handles are `source`: with ConnectionMode.Loose any handle can connect to any other. */}
+        {HANDLE_SIDES.map((side) => (
+          <Handle key={side} id={side} type="source" position={side} className="canvas-handle" />
+        ))}
+      </div>
+    </>
   )
 }
