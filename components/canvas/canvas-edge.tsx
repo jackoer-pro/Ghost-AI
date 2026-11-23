@@ -1,5 +1,5 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow, type EdgeProps } from "@xyflow/react"
-import { useState, type KeyboardEvent } from "react"
+import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 import { cn } from "@/lib/utils"
 import type { CanvasEdge as CanvasEdgeType } from "@/types/canvas"
@@ -28,11 +28,23 @@ export function CanvasEdge({
   const { updateEdgeData } = useReactFlow()
   const [draft, setDraft] = useState<string | null>(null) // null = not editing
   const label = data?.label ?? ""
+  const pathGroup = useRef<SVGGElement>(null)
 
-  function startEditing() {
-    setDraft(label)
-  }
+  // Native listener, not onDoubleClick: React Flow's d3 zoom handles dblclick on the pane before
+  // React sees it, so a React handler can't stop the canvas zooming in. `nopan` would stop the zoom
+  // too, but it would also block drag-to-pan starting on the edge's wide hit area.
+  useEffect(() => {
+    const group = pathGroup.current
+    if (!group) return
+    function onDoubleClick(event: MouseEvent) {
+      event.stopPropagation()
+      setDraft(label)
+    }
+    group.addEventListener("dblclick", onDoubleClick)
+    return () => group.removeEventListener("dblclick", onDoubleClick)
+  }, [label])
 
+  // Single save path: Enter/Escape blur the input, and blur saves.
   function save() {
     if (draft === null) return
     // Goes through onEdgesChange ("replace"), i.e. the Liveblocks-synced edge state.
@@ -40,14 +52,14 @@ export function CanvasEdge({
     setDraft(null)
   }
 
-  function onKeyDown(event: KeyboardEvent) {
-    if (event.key === "Enter" || event.key === "Escape") save()
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" || event.key === "Escape") event.currentTarget.blur()
   }
 
   return (
     <>
       {/* The <g> catches double-clicks on both the visible path and BaseEdge's wider invisible hit path. */}
-      <g onDoubleClick={startEditing}>
+      <g ref={pathGroup}>
         <BaseEdge
           path={path}
           markerEnd={markerEnd}
@@ -60,7 +72,7 @@ export function CanvasEdge({
           // nodrag/nopan: React Flow ignores pointer events from these for dragging and panning.
           className="nodrag nopan absolute"
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: "all" }}
-          onDoubleClick={startEditing}
+          onDoubleClick={() => setDraft(label)}
         >
           {draft !== null ? (
             <input
