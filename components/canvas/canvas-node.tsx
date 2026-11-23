@@ -1,9 +1,10 @@
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react"
 import { useState, type KeyboardEvent } from "react"
 
+import { NodeColorToolbar } from "@/components/canvas/node-color-toolbar"
 import { NodeShapeBody } from "@/components/canvas/node-shape"
 import { cn } from "@/lib/utils"
-import type { CanvasNode as CanvasNodeType } from "@/types/canvas"
+import { DEFAULT_NODE_TEXT_COLOR, type CanvasNode as CanvasNodeType } from "@/types/canvas"
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 
@@ -17,6 +18,7 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
   const { updateNodeData } = useReactFlow<CanvasNodeType>()
   const [editing, setEditing] = useState(false)
   const label = data.label
+  const textColor = data.textColor ?? DEFAULT_NODE_TEXT_COLOR
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Escape") event.currentTarget.blur() // blur closes editing
@@ -24,6 +26,8 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
 
   return (
     <>
+      {/* Writes go through onNodesChange ("replace") into Liveblocks storage, like label edits. */}
+      <NodeColorToolbar color={data.color} onSelect={(pair) => updateNodeData(id, pair)} />
       {/* Resizing emits "dimensions" changes through onNodesChange, i.e. the Liveblocks-synced node state. */}
       <NodeResizer
         isVisible={selected && !editing}
@@ -42,9 +46,10 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
             <span
               className={cn(
                 "block text-center text-sm whitespace-pre-wrap break-words select-none",
-                label ? "text-copy-primary" : "text-copy-faint",
+                !label && "text-copy-faint",
                 editing && "invisible",
               )}
+              style={label ? { color: textColor } : undefined}
             >
               {label ? label + (label.endsWith("\n") ? " " : "") : PLACEHOLDER}
             </span>
@@ -60,7 +65,8 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
                 onKeyDown={onKeyDown}
                 aria-label="Node label"
                 // nodrag/nopan/nowheel: React Flow ignores these pointer and wheel events for drag, pan and zoom.
-                className="nodrag nopan nowheel absolute inset-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-center text-sm whitespace-pre-wrap break-words text-copy-primary outline-none placeholder:text-copy-faint"
+                className="nodrag nopan nowheel absolute inset-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-center text-sm whitespace-pre-wrap break-words outline-none placeholder:text-copy-faint"
+                style={{ color: textColor }}
               />
             ) : null}
           </div>

@@ -2,6 +2,8 @@ import "server-only"
 
 import { Liveblocks } from "@liveblocks/node"
 
+import { NODE_COLORS } from "@/types/canvas"
+
 // Created on first use, not at import: `next build` loads route modules
 // without secrets, and the constructor rejects a missing key.
 const globalForLiveblocks = globalThis as unknown as { liveblocks?: Liveblocks }
@@ -16,8 +18,8 @@ export function getLiveblocks(): Liveblocks {
   return globalForLiveblocks.liveblocks
 }
 
-// The vivid text colors of the node palette (ui-context.md), so cursors match the canvas.
-export const CURSOR_COLORS = ["#52A8FF", "#BF7AF0", "#FF990A", "#FF6166", "#F75F8F", "#62C073", "#0AC7B4"] as const
+// The vivid text colors of the node palette (skipping the neutral default), so cursors match the canvas.
+export const CURSOR_COLORS = NODE_COLORS.slice(1).map((pair) => pair.textColor)
 
 /** Same user ID → same color, on every device and session. */
 export function cursorColor(userId: string): string {

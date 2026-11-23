@@ -83,6 +83,8 @@ Radius increases with surface depth — smaller for inner elements, larger for o
 
 Default node color: `#1F1F1F` with `#EDEDED` text.
 
+Nodes store both colors (`data.color`, `data.textColor`). A selected node (only when it's the only one selected) shows a floating swatch toolbar 12px above it (`components/canvas/node-color-toolbar.tsx`, React Flow `NodeToolbar`): round swatches on a `bg-elevated` `rounded-xl` bar, active = `copy-primary` ring, hover = tight glow in the pair's text color.
+
 ### Edge Style
 
 Smooth-step path with an arrow marker. Default edge color: `#f8fafc` (`--edge-color` in `globals.css`). Stroke width is thin (1.5px, round caps) — edges are visually secondary to nodes. Edges sit at 55% opacity at rest and go to full opacity on hover or selection. Labels are small `rounded-full` pill badges on `bg-elevated`.
