@@ -85,7 +85,7 @@ Default node color: `#1F1F1F` with `#EDEDED` text.
 
 ### Edge Style
 
-Smooth-step path with an arrow marker. Default edge color: `#f8fafc`. Stroke width is thin — edges are visually secondary to nodes.
+Smooth-step path with an arrow marker. Default edge color: `#f8fafc` (`--edge-color` in `globals.css`). Stroke width is thin (1.5px, round caps) — edges are visually secondary to nodes. Edges sit at 55% opacity at rest and go to full opacity on hover or selection. Labels are small `rounded-full` pill badges on `bg-elevated`.
 
 ### Node Shapes
 
@@ -100,7 +100,7 @@ Smooth-step path with an arrow marker. Default edge color: `#f8fafc`. Stroke wid
 
 ### Connection Handles
 
-Small white circular handles, hidden by default, revealed on node hover. Appear at all four sides of a node.
+Small white circular handles (8px, `--text-primary` with a `--bg-base` border), hidden by default, revealed on node hover. Appear at all four sides of a node. Styled in `globals.css` (`.canvas-handle`).
 
 ### Canvas Background
 

@@ -7,6 +7,9 @@ import type { Edge, Node } from "@xyflow/react"
 export const NODE_SHAPES = ["rectangle", "diamond", "circle", "pill", "cylinder", "hexagon"] as const
 export type NodeShape = (typeof NODE_SHAPES)[number]
 
+/** Default node fill (ui-context "Node Color Palette"); the full palette lands in feature 15. */
+export const DEFAULT_NODE_COLOR = "#1F1F1F"
+
 // `type`, not `interface`: React Flow requires node data to be a Record<string, unknown>,
 // which interfaces don't satisfy (they have no implicit index signature).
 export type CanvasNodeData = {
@@ -17,4 +20,9 @@ export type CanvasNodeData = {
 }
 
 export type CanvasNode = Node<CanvasNodeData, "canvasNode">
-export type CanvasEdge = Edge<Record<string, unknown>, "canvasEdge">
+export type CanvasEdgeData = {
+  /** Inline edge label; empty or missing = no label. */
+  label?: string
+}
+
+export type CanvasEdge = Edge<CanvasEdgeData, "canvasEdge">
