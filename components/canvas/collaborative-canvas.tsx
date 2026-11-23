@@ -1,6 +1,15 @@
 "use client"
 
-import { ClientSideSuspense, LiveblocksProvider, RoomProvider, useErrorListener } from "@liveblocks/react/suspense"
+import {
+  ClientSideSuspense,
+  LiveblocksProvider,
+  RoomProvider,
+  useCanRedo,
+  useCanUndo,
+  useErrorListener,
+  useRedo,
+  useUndo,
+} from "@liveblocks/react/suspense"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
   Background,
@@ -20,11 +29,13 @@ import { Loader2, Unplug } from "lucide-react"
 import { useState, type DragEvent } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 
+import { CanvasControls } from "@/components/canvas/canvas-controls"
 import { CanvasEdge as CanvasEdgeView } from "@/components/canvas/canvas-edge"
 import { CanvasNode as CanvasNodeView } from "@/components/canvas/canvas-node"
 import { MiniMapShape } from "@/components/canvas/node-shape"
 import { ShapePanel } from "@/components/canvas/shape-panel"
 import { Button } from "@/components/ui/button"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { createShapeNode, parseShapeDragPayload, SHAPE_DRAG_TYPE } from "@/lib/shape-drag"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 
@@ -68,7 +79,14 @@ function Flow() {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<CanvasNode, CanvasEdge>(
     { suspense: true, nodes: { initial: [] }, edges: { initial: [] } },
   )
-  const { screenToFlowPosition } = useReactFlow()
+  const flow = useReactFlow()
+  const { screenToFlowPosition } = flow
+  // Room-wide Liveblocks history; drags and resizes are one step each (the binding pauses history meanwhile).
+  const undo = useUndo()
+  const redo = useRedo()
+  const canUndo = useCanUndo()
+  const canRedo = useCanRedo()
+  useKeyboardShortcuts({ flow, undo, redo })
   // Fit only when the room already had nodes on load. In an empty room React Flow would wait for
   // the first dropped node and zoom in on it (to maxZoom 2), so drops would land on top of each other.
   const [fitOnLoad] = useState(nodes.length > 0)
@@ -122,6 +140,7 @@ function Flow() {
           className="overflow-hidden rounded-xl border border-surface-border max-sm:hidden"
         />
       </ReactFlow>
+      <CanvasControls undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} fitViewOptions={fitViewOptions} />
       <ShapePanel />
     </div>
   )

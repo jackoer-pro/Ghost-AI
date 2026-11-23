@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–16 done; feature 17 is next. `LIVEBLOCKS_SECRET_KEY` is now in `.env.local` (dev key, checked against the Liveblocks API); the canvas still needs a signed-in browser check.
+- Features 01–17 done; feature 18 (starter template) is next. `LIVEBLOCKS_SECRET_KEY` is in `.env.local` (dev key).
 
 ## Completed
 
@@ -63,13 +63,16 @@ change.
 
 - Feature 16 review (2026-11-23): checked against the spec; all "Check When Done" items were already met. Two fixes in `components/canvas/canvas-edge.tsx`. (1) Double-clicking an edge to label it also zoomed the canvas in: React Flow's d3 zoom catches `dblclick` on the pane before React does, and only skips `nopan` targets. The path `<g>` now has a native `dblclick` listener that calls `stopPropagation()` and starts editing. `nopan` would also stop the zoom, but it would block drag-to-pan starting on the 24px hit area. The label wrapper already had `nopan`. (2) Enter/Escape now blur the input and blur saves, so there's one save path; before, Enter saved and then unmounting the focused input could fire a second, stale save. `tsc`, `eslint --max-warnings 0` and `npm run build` pass. Not re-checked in a browser after these two fixes.
 
+- Feature 17 canvas ergonomics (2026-11-24): `components/canvas/canvas-controls.tsx` is a pill bar at the bottom-left of the canvas (same `bg-surface/85` + blur style as the shape panel): zoom out / fit view / zoom in, a 1px divider, undo / redo. Zoom goes through `useReactFlow()` with a 200ms animation (`ZOOM_ANIMATION`); fit view reuses the canvas `fitViewOptions` (`maxZoom: 1`). Undo/redo use Liveblocks `useUndo`/`useRedo`, disabled (35% opacity, no pointer events) from `useCanUndo`/`useCanRedo`. Below `sm` the bar moves up (`bottom-20`) to sit above the bottom-center shape panel instead of overlapping it. `hooks/use-keyboard-shortcuts.ts` (kebab-case like the other hooks; the spec says `useKeyboardShortcuts`, which is the exported name) takes the React Flow instance + undo/redo and listens on `window`: `+`/`=` zoom in, `-` zoom out, Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z and Cmd/Ctrl+Y redo. It skips inputs, textareas, selects and contenteditable elements (`isEditableTarget`), and zoom keys only fire without modifiers, so Ctrl/Cmd + `=`/`-` stays the browser's page zoom. Fix found in review: every keystroke in a node label wrote to storage as its own history entry (typing "Load balancer" took 13 undos). `canvas-node.tsx` now pauses Liveblocks history while the label editor is open (effect cleanup resumes it, also if the node unmounts mid-edit), so one edit = one undo step. Drags and resizes were already one step each (`@liveblocks/react-flow` pauses history during them); edge labels save once on blur. `tsc`, `eslint --max-warnings 0`, `npm run build` pass. Browser check (dev server, Clerk test user, throwaway project deleted afterwards): both history buttons disabled on an empty room; drop → undo enabled; undo/redo buttons, Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y remove/restore the node; `=`, `+`, `-` and the zoom buttons step by 1.2×; fit view caps at 100%; typing `a-b=` in a label edits text without zooming, and Ctrl+Z inside the textarea is the browser's text undo, not canvas undo; one Ctrl+Z after editing a label restores the whole previous label; layout checked at 1280px and 375px; 0 console errors.
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Add `LIVEBLOCKS_SECRET_KEY` to the deploy env, check feature 14 in the browser (resize handles, double-click edit, Escape/blur, no zoom on node double-click), then feature 17. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
+- Add `LIVEBLOCKS_SECRET_KEY` to the deploy env, check feature 14's resize handles in the browser (label double-click edit and Escape were exercised during the feature 17 check), then feature 18.
+- Phone width: the Liveblocks "Powered by" badge (bottom-right) overlaps the right end of the shape panel. Predates feature 17; not fixed here. Specs 06–29 were copied from the upstream ghost-ai repo; 01–05 keep our filenames.
 - Sign-in flow not yet tested in a browser (sign up, land on `/editor`, sign out via `UserButton`).
 
 ## Open Questions

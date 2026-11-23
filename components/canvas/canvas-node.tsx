@@ -1,5 +1,6 @@
+import { useHistory } from "@liveblocks/react/suspense"
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react"
-import { useState, type KeyboardEvent } from "react"
+import { useEffect, useState, type KeyboardEvent } from "react"
 
 import { NodeColorToolbar } from "@/components/canvas/node-color-toolbar"
 import { NodeShapeBody } from "@/components/canvas/node-shape"
@@ -17,7 +18,16 @@ const PLACEHOLDER = "Label"
 export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
   const { updateNodeData } = useReactFlow<CanvasNodeType>()
   const [editing, setEditing] = useState(false)
+  const history = useHistory()
   const label = data.label
+
+  // Each keystroke writes to storage (collaborators see typing live); pausing history makes
+  // the whole edit one undo step. The cleanup also resumes it if the node unmounts mid-edit.
+  useEffect(() => {
+    if (!editing) return
+    history.pause()
+    return () => history.resume()
+  }, [editing, history])
   const textColor = data.textColor ?? DEFAULT_NODE_TEXT_COLOR
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
