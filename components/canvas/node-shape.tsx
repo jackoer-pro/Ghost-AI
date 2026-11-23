@@ -1,3 +1,4 @@
+import type { MiniMapNodeProps } from "@xyflow/react"
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
@@ -36,6 +37,48 @@ const SHAPE_CLASS: Record<NodeShape, string> = {
   cylinder: "px-3 pt-[12%]",
 }
 
+// One hue per shape on the MiniMap (the bright column of the ui-context node palette), so shapes
+// are told apart at a glance at minimap scale, where the dark node fills would disappear.
+const MINIMAP_COLORS: Record<NodeShape, string> = {
+  rectangle: "#52A8FF",
+  diamond: "#FF990A",
+  circle: "#62C073",
+  pill: "#BF7AF0",
+  cylinder: "#0AC7B4",
+  hexagon: "#F75F8F",
+}
+
+/**
+ * MiniMap node drawn as its real shape. The MiniMap only passes geometry, so the canvas passes the
+ * shape through `nodeClassName` (it reaches this component as `className`, untouched).
+ */
+export function MiniMapShape({ x, y, width, height, className, selected }: MiniMapNodeProps) {
+  const shape = className as NodeShape
+  const color = MINIMAP_COLORS[shape] ?? "var(--text-muted)"
+  const svg = SVG_SHAPES[shape]
+  const r = shape === "rectangle" ? Math.min(width, height) * 0.15 : Math.min(width, height) / 2
+
+  return (
+    <svg
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      viewBox={svg ? "0 0 100 100" : undefined}
+      preserveAspectRatio="none"
+      overflow="visible"
+      fill={color}
+      fillOpacity={selected ? 0.65 : 0.35}
+      stroke={color}
+      strokeWidth={selected ? 2.5 : 1.5}
+      strokeLinejoin="round"
+      className="[&_*]:[vector-effect:non-scaling-stroke]"
+    >
+      {svg ?? <rect width={width} height={height} rx={r} />}
+    </svg>
+  )
+}
+
 /** Visual body of a node: CSS for rectangle/pill/circle, a stretched SVG for the rest. Fills its parent. */
 export function NodeShapeBody({ shape, color, selected = false, className, children }: NodeShapeBodyProps) {
   const svg = SVG_SHAPES[shape]
@@ -62,7 +105,7 @@ export function NodeShapeBody({ shape, color, selected = false, className, child
         </svg>
       ) : null}
       {/* Above the absolutely positioned SVG. */}
-      <div className="relative min-w-0">{children}</div>
+      <div className="relative w-full min-w-0">{children}</div>
     </div>
   )
 }

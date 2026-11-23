@@ -22,6 +22,7 @@ import { ErrorBoundary } from "react-error-boundary"
 
 import { CanvasEdge as CanvasEdgeView } from "@/components/canvas/canvas-edge"
 import { CanvasNode as CanvasNodeView } from "@/components/canvas/canvas-node"
+import { MiniMapShape } from "@/components/canvas/node-shape"
 import { ShapePanel } from "@/components/canvas/shape-panel"
 import { Button } from "@/components/ui/button"
 import { createShapeNode, parseShapeDragPayload, SHAPE_DRAG_TYPE } from "@/lib/shape-drag"
@@ -115,7 +116,8 @@ function Flow() {
           zoomable
           bgColor="var(--bg-surface)"
           maskColor="color-mix(in srgb, var(--bg-base) 60%, transparent)"
-          nodeColor={(node) => node.data.color}
+          nodeClassName={(node) => node.data.shape}
+          nodeComponent={MiniMapShape}
           // Hidden on phones: it would sit under the bottom-center shape panel.
           className="overflow-hidden rounded-xl border border-surface-border max-sm:hidden"
         />

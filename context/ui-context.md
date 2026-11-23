@@ -83,6 +83,8 @@ Radius increases with surface depth — smaller for inner elements, larger for o
 
 Default node color: `#1F1F1F` with `#EDEDED` text.
 
+Nodes store both colors (`data.color`, `data.textColor`). A selected node (only when it's the only one selected) shows a floating swatch toolbar 12px above it (`components/canvas/node-color-toolbar.tsx`, React Flow `NodeToolbar`): round swatches on a `bg-elevated` `rounded-xl` bar, active = `copy-primary` ring, hover = tight glow in the pair's text color.
+
 ### Edge Style
 
 Smooth-step path with an arrow marker. Default edge color: `#f8fafc` (`--edge-color` in `globals.css`). Stroke width is thin (1.5px, round caps) — edges are visually secondary to nodes. Edges sit at 55% opacity at rest and go to full opacity on hover or selection. Labels are small `rounded-full` pill badges on `bg-elevated`.
@@ -104,7 +106,7 @@ Small white circular handles (8px, `--text-primary` with a `--bg-base` border), 
 
 ### Canvas Background
 
-React Flow `<Background>` component with the dot pattern (`--border-subtle` dots on `--bg-base`). React Flow runs with `colorMode="dark"`. The MiniMap sits on `--bg-surface` with a `rounded-xl` subtle border, and its node colors come from each node's `data.color`.
+React Flow `<Background>` component with the dot pattern (`--border-subtle` dots on `--bg-base`). React Flow runs with `colorMode="dark"`. The MiniMap sits on `--bg-surface` with a `rounded-xl` subtle border, and draws each node as its real shape with one hue per shape, taken from the bright column of the node palette: rectangle `#52A8FF`, diamond `#FF990A`, circle `#62C073`, pill `#BF7AF0`, cylinder `#0AC7B4`, hexagon `#F75F8F`. Fill is 35% opacity with a solid 1.5px outline; selected nodes go to 65% fill with a 2.5px outline. Minimap colors follow the shape, not the node's `data.color`, so the dark node fills don't disappear at minimap scale.
 
 ## Component Library
 

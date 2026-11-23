@@ -1,4 +1,4 @@
-import { DEFAULT_NODE_COLOR, NODE_SHAPES, type CanvasNode, type NodeShape } from "@/types/canvas"
+import { DEFAULT_NODE_COLOR, DEFAULT_NODE_TEXT_COLOR, NODE_SHAPES, type CanvasNode, type NodeShape } from "@/types/canvas"
 
 /** Custom drag MIME type, so the canvas ignores unrelated drops (files, links, text). */
 export const SHAPE_DRAG_TYPE = "application/x-canvas-shape"
@@ -64,6 +64,6 @@ export function createShapeNode({ shape, size }: ShapeDragPayload, at: { x: numb
     position: { x: at.x - size.width / 2, y: at.y - size.height / 2 },
     width: size.width,
     height: size.height,
-    data: { label: "", color: DEFAULT_NODE_COLOR, shape },
+    data: { label: "", color: DEFAULT_NODE_COLOR, textColor: DEFAULT_NODE_TEXT_COLOR, shape },
   }
 }
