@@ -28,6 +28,8 @@
 - Project records, spec records, and task run records belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from Vercel Blob.
 - The blob URL is stored in the database (`canvasJsonPath`, `filePath`) as the reference to the artifact.
+- The Blob store is private: artifacts are written with `access: "private"` and only read server-side (with the store token) after an access check, never fetched by the browser from the blob URL.
+- The Liveblocks room is the live source of truth for the canvas; the Blob snapshot is a backup that is only loaded into a room that is empty on open.
 
 ## Auth and Collaboration Model
 

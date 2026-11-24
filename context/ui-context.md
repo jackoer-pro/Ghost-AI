@@ -68,18 +68,20 @@ Radius increases with surface depth — smaller for inner elements, larger for o
 
 ### Node Color Palette
 
-8 defined color pairs. Each pair specifies a dark node fill and a vivid contrasting text color tuned for readability on the dark canvas. Defined in `types/canvas.ts` as `NODE_COLORS`.
+8 defined color pairs. Each pair is a mid-tone fill that stands out from the dark canvas (≥ 1.9:1 against `--bg-base`, most ≥ 2.8:1) and from the other fills, with near-white text that passes WCAG AA (≥ 4.5:1) on it. Defined in `types/canvas.ts` as `NODE_COLORS`.
 
-| Node fill | Text color | Character              |
-| --------- | ---------- | ---------------------- |
-| `#1F1F1F` | `#EDEDED`  | Neutral dark (default) |
-| `#10233D` | `#52A8FF`  | Blue                   |
-| `#2E1938` | `#BF7AF0`  | Purple                 |
-| `#331B00` | `#FF990A`  | Orange                 |
-| `#3C1618` | `#FF6166`  | Red                    |
-| `#3A1726` | `#F75F8F`  | Pink                   |
-| `#0F2E18` | `#62C073`  | Green                  |
-| `#062822` | `#0AC7B4`  | Teal                   |
+| Node fill | Text color | Character         | Text contrast |
+| --------- | ---------- | ----------------- | ------------- |
+| `#3F3F46` | `#FAFAFA`  | Neutral (default) | 10.0          |
+| `#1D4ED8` | `#EFF6FF`  | Blue              | 6.2           |
+| `#7E22CE` | `#FAF5FF`  | Purple            | 6.5           |
+| `#C2410C` | `#FFF7ED`  | Orange            | 4.9           |
+| `#B91C1C` | `#FEF2F2`  | Red               | 5.9           |
+| `#BE185D` | `#FDF2F8`  | Pink              | 5.5           |
+| `#15803D` | `#F0FDF4`  | Green             | 4.8           |
+| `#0F766E` | `#F0FDFA`  | Teal              | 5.3           |
+
+The first palette (near-black fills `#1F1F1F`, `#10233D`, … at only 1.2–1.3:1 against the canvas) is still stored on older nodes; `resolveNodeColors()` draws those with the current pair at the same position. Live cursor colors are a separate fixed list (`CURSOR_COLORS` in `lib/liveblocks.ts`).
 
 Default node color: `#1F1F1F` with `#EDEDED` text.
 

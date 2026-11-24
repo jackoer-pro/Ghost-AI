@@ -1,3 +1,5 @@
+import { del } from "@vercel/blob"
+
 import { Prisma } from "@/lib/generated/prisma/client"
 import { authorizeProject } from "@/lib/project-access"
 import { prisma } from "@/lib/prisma"
@@ -34,11 +36,14 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   const auth = await authorizeProject(projectId, "owner")
   if (auth instanceof Response) return auth
 
+  let canvasJsonPath: string | null
   try {
-    await prisma.project.delete({ where: { id: projectId } })
+    ;({ canvasJsonPath } = await prisma.project.delete({ where: { id: projectId } }))
   } catch (err) {
     if (isGone(err)) return Response.json({ error: "Not found" }, { status: 404 })
     throw err
   }
+  // Best effort: the project is already gone, so a Blob failure only leaves an unreachable file.
+  if (canvasJsonPath) await del(canvasJsonPath).catch(() => {})
   return new Response(null, { status: 204 })
 }

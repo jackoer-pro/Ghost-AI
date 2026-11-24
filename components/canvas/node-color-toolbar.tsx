@@ -1,4 +1,5 @@
 import { NodeToolbar, Position } from "@xyflow/react"
+import { Trash2 } from "lucide-react"
 import type { CSSProperties } from "react"
 
 import { Hint } from "@/components/hint"
@@ -9,13 +10,14 @@ interface NodeColorToolbarProps {
   /** Current fill of the node; the matching swatch is shown as active. */
   color: string
   onSelect: (pair: { color: string; textColor: string }) => void
+  onDelete: () => void
 }
 
 /**
  * Floating swatch row above a selected node. NodeToolbar renders outside the node element and,
  * with `isVisible` unset, only shows when this is the single selected node.
  */
-export function NodeColorToolbar({ color, onSelect }: NodeColorToolbarProps) {
+export function NodeColorToolbar({ color, onSelect, onDelete }: NodeColorToolbarProps) {
   return (
     <NodeToolbar position={Position.Top} offset={12}>
       {/* nodrag/nopan: clicks and drags here never move the node or pan the canvas. */}
@@ -46,6 +48,17 @@ export function NodeColorToolbar({ color, onSelect }: NodeColorToolbarProps) {
             </Hint>
           )
         })}
+        <span className="mx-0.5 h-5 w-px bg-surface-border" aria-hidden />
+        <Hint label="Delete node (Del)">
+          <button
+            type="button"
+            aria-label="Delete node"
+            onClick={onDelete}
+            className="flex size-6 items-center justify-center rounded-full text-copy-muted transition-colors outline-none hover:bg-state-error/15 hover:text-state-error focus-visible:bg-state-error/15 focus-visible:text-state-error"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </Hint>
       </div>
     </NodeToolbar>
   )

@@ -40,6 +40,7 @@ import { ShapePanel } from "@/components/canvas/shape-panel"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
 import { Button } from "@/components/ui/button"
+import { useCanvasAutosave, type CanvasAutosave } from "@/hooks/use-canvas-autosave"
 import { useKeyboardShortcuts, ZOOM_ANIMATION } from "@/hooks/use-keyboard-shortcuts"
 import { createShapeNode, parseShapeDragPayload, SHAPE_DRAG_TYPE } from "@/lib/shape-drag"
 import { EDGE_MARKER_END, type CanvasEdge, type CanvasNode } from "@/types/canvas"
@@ -50,11 +51,13 @@ interface CollaborativeCanvasProps {
   /** Starter templates modal; its state lives in the shell because the navbar opens it. */
   templatesOpen: boolean
   onTemplatesOpenChange: (open: boolean) => void
+  /** Autosave state for the navbar's Save button; null while the canvas isn't connected. Must be stable. */
+  onAutosaveChange: (autosave: CanvasAutosave | null) => void
 }
 
 // Client boundary for the shared canvas: joins the project's Liveblocks room
 // (token from /api/liveblocks-auth) and renders React Flow on the synced state.
-export function CollaborativeCanvas({ roomId, templatesOpen, onTemplatesOpenChange }: CollaborativeCanvasProps) {
+export function CollaborativeCanvas({ roomId, ...flowProps }: CollaborativeCanvasProps) {
   return (
     // throttle 16ms (default 100ms) so live cursors move smoothly.
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth" throttle={16}>
@@ -64,7 +67,7 @@ export function CollaborativeCanvas({ roomId, templatesOpen, onTemplatesOpenChan
             <ConnectionErrorGuard />
             <ClientSideSuspense fallback={<CanvasLoading />}>
               <ReactFlowProvider>
-                <Flow templatesOpen={templatesOpen} onTemplatesOpenChange={onTemplatesOpenChange} />
+                <Flow roomId={roomId} {...flowProps} />
               </ReactFlowProvider>
             </ClientSideSuspense>
           </ErrorBoundary>
@@ -85,11 +88,14 @@ const defaultEdgeOptions: DefaultEdgeOptions = {
   markerEnd: EDGE_MARKER_END,
 }
 
+// React Flow only listens for Backspace by default; Delete is what most people reach for on Windows.
+const DELETE_KEYS = ["Backspace", "Delete"]
+
 // Never zoom in past 100% when fitting a small diagram.
 const fitViewOptions = { maxZoom: 1 }
 
 // The modal renders inside the room (it's portaled, so where doesn't matter) so imports can write to storage.
-function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvasProps, "roomId">) {
+function Flow({ roomId, templatesOpen, onTemplatesOpenChange, onAutosaveChange }: CollaborativeCanvasProps) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<CanvasNode, CanvasEdge>(
     { suspense: true, nodes: { initial: [] }, edges: { initial: [] } },
   )
@@ -107,6 +113,26 @@ function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvas
   const room = useRoom()
   const fitAfterImport = useRef(false)
   const updateMyPresence = useUpdateMyPresence()
+
+  // Restoring the saved copy into an empty room: one batch, outside undo history, so Ctrl+Z can't
+  // empty the canvas again (which autosave would then write over the saved copy).
+  const autosave = useCanvasAutosave({
+    projectId: roomId,
+    nodes,
+    edges,
+    onLoad: (saved) =>
+      room.history.disable(() =>
+        room.batch(() => {
+          onNodesChange(saved.nodes.map((item) => ({ type: "add", item })))
+          onEdgesChange(saved.edges.map((item) => ({ type: "add", item })))
+        }),
+      ),
+  })
+  const { status: saveStatus, saveNow } = autosave
+  useEffect(() => {
+    onAutosaveChange({ status: saveStatus, saveNow })
+  }, [saveStatus, saveNow, onAutosaveChange])
+  useEffect(() => () => onAutosaveChange(null), [onAutosaveChange])
 
   // Replace, not merge: clear the canvas, then add the template, in one batch, so collaborators never see
   // a half-loaded diagram and a single undo brings the previous canvas back.
@@ -150,6 +176,7 @@ function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvas
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onDelete={onDelete}
+        deleteKeyCode={DELETE_KEYS}
         // Broadcast the pointer in flow coordinates, so it lands on the same spot for every viewer.
         // Pointer, not mouse, events: d3 (node drag, pan) swallows window `mousemove` in the capture
         // phase, so with onMouseMove a cursor would freeze for others while you drag a node.

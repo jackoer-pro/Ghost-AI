@@ -7,20 +7,37 @@ import type { Edge, EdgeMarker, Node } from "@xyflow/react"
 export const NODE_SHAPES = ["rectangle", "diamond", "circle", "pill", "cylinder", "hexagon"] as const
 export type NodeShape = (typeof NODE_SHAPES)[number]
 
-/** Node color pairs (ui-context "Node Color Palette"): dark fill + vivid text tuned for the dark canvas. */
+/**
+ * Node color pairs (ui-context "Node Color Palette"): mid-tone fills that stand apart from the dark
+ * canvas and from each other, with near-white text (WCAG AA, ≥ 4.5:1 on every fill).
+ */
 export const NODE_COLORS = [
-  { name: "Neutral", color: "#1F1F1F", textColor: "#EDEDED" },
-  { name: "Blue", color: "#10233D", textColor: "#52A8FF" },
-  { name: "Purple", color: "#2E1938", textColor: "#BF7AF0" },
-  { name: "Orange", color: "#331B00", textColor: "#FF990A" },
-  { name: "Red", color: "#3C1618", textColor: "#FF6166" },
-  { name: "Pink", color: "#3A1726", textColor: "#F75F8F" },
-  { name: "Green", color: "#0F2E18", textColor: "#62C073" },
-  { name: "Teal", color: "#062822", textColor: "#0AC7B4" },
+  { name: "Neutral", color: "#3F3F46", textColor: "#FAFAFA" },
+  { name: "Blue", color: "#1D4ED8", textColor: "#EFF6FF" },
+  { name: "Purple", color: "#7E22CE", textColor: "#FAF5FF" },
+  { name: "Orange", color: "#C2410C", textColor: "#FFF7ED" },
+  { name: "Red", color: "#B91C1C", textColor: "#FEF2F2" },
+  { name: "Pink", color: "#BE185D", textColor: "#FDF2F8" },
+  { name: "Green", color: "#15803D", textColor: "#F0FDF4" },
+  { name: "Teal", color: "#0F766E", textColor: "#F0FDFA" },
 ] as const
 
 export const DEFAULT_NODE_COLOR = NODE_COLORS[0].color
 export const DEFAULT_NODE_TEXT_COLOR = NODE_COLORS[0].textColor
+
+// Fills of the first palette (near-black, hard to tell apart), in NODE_COLORS order. Nodes already in
+// rooms and saved canvases still store these, so they're shown with the matching current pair.
+const LEGACY_FILLS = ["#1f1f1f", "#10233d", "#2e1938", "#331b00", "#3c1618", "#3a1726", "#0f2e18", "#062822"]
+
+/** The colors to draw a node with: its stored pair, or the current pair for a legacy fill. */
+export function resolveNodeColors(data: Pick<CanvasNodeData, "color" | "textColor">): {
+  color: string
+  textColor: string
+} {
+  const legacy = LEGACY_FILLS.indexOf(data.color.toLowerCase())
+  if (legacy !== -1) return NODE_COLORS[legacy]
+  return { color: data.color, textColor: data.textColor ?? DEFAULT_NODE_TEXT_COLOR }
+}
 
 // `type`, not `interface`: React Flow requires node data to be a Record<string, unknown>,
 // which interfaces don't satisfy (they have no implicit index signature).

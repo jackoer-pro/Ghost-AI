@@ -1,9 +1,20 @@
 import { UserButton } from "@clerk/nextjs"
-import { LayoutTemplate, PanelLeftClose, PanelLeftOpen, Share2, Sparkles } from "lucide-react"
+import {
+  AlertCircle,
+  Check,
+  LayoutTemplate,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Save,
+  Share2,
+  Sparkles,
+} from "lucide-react"
 
 import { Hint } from "@/components/hint"
 import { RoleBadge } from "@/components/editor/role-badge"
 import { Button } from "@/components/ui/button"
+import type { CanvasAutosave, SaveStatus } from "@/hooks/use-canvas-autosave"
 import { cn } from "@/lib/utils"
 
 type EditorNavbarProps = {
@@ -17,7 +28,45 @@ type EditorNavbarProps = {
     onToggleAiSidebar: () => void
     onShare: () => void
     onOpenTemplates: () => void
+    /** Canvas autosave; null until the canvas connects. */
+    autosave: CanvasAutosave | null
   }
+}
+
+const SAVE_LABELS: Record<SaveStatus, { text: string; hint: string }> = {
+  loading: { text: "Loading…", hint: "Checking for a saved canvas" },
+  "load-error": { text: "Load failed", hint: "Couldn't check the saved canvas. Click to retry" },
+  idle: { text: "Save", hint: "Changes save automatically" },
+  saving: { text: "Saving…", hint: "Saving the canvas" },
+  saved: { text: "Saved", hint: "All changes saved" },
+  error: { text: "Save failed", hint: "Couldn't save the canvas. Click to retry" },
+}
+
+function SaveButton({ autosave }: { autosave: CanvasAutosave | null }) {
+  const status = autosave?.status ?? "loading"
+  const { text, hint } = SAVE_LABELS[status]
+  const failed = status === "error" || status === "load-error"
+  const busy = status === "loading" || status === "saving"
+  const Icon = busy ? Loader2 : failed ? AlertCircle : status === "saved" ? Check : Save
+  return (
+    <Hint label={hint} side="bottom">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={autosave?.saveNow}
+        disabled={!autosave || busy}
+        aria-label={text}
+        className={cn(failed && "text-state-error hover:text-state-error")}
+      >
+        <Icon className={cn(busy && "animate-spin", status === "saved" && "text-state-success")} />
+        <span className="hidden sm:inline">{text}</span>
+        {/* Announces status changes; the visible text is hidden on phones and aria-label changes aren't read. */}
+        <span role="status" className="sr-only">
+          {text}
+        </span>
+      </Button>
+    </Hint>
+  )
 }
 
 export function EditorNavbar({ isSidebarOpen, onToggleSidebar, workspace }: EditorNavbarProps) {
@@ -51,6 +100,7 @@ export function EditorNavbar({ isSidebarOpen, onToggleSidebar, workspace }: Edit
       <div className="flex flex-1 items-center justify-end gap-1">
         {workspace && (
           <>
+            <SaveButton autosave={workspace.autosave} />
             <Hint label="Start from a starter template" side="bottom">
               <Button variant="ghost" size="sm" onClick={workspace.onOpenTemplates} aria-label="Templates">
                 <LayoutTemplate />
