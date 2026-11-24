@@ -1,5 +1,5 @@
-import { SHAPE_DEFAULT_SIZES } from "@/lib/shape-drag"
-import { EDGE_MARKER_END, NODE_COLORS, type CanvasEdge, type CanvasNode, type NodeShape } from "@/types/canvas"
+import { buildEdge, buildNode } from "@/lib/canvas-builders"
+import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 
 /** A predefined diagram that replaces the canvas when imported. */
 export interface CanvasTemplate {
@@ -10,48 +10,18 @@ export interface CanvasTemplate {
   edges: CanvasEdge[]
 }
 
-type ColorName = (typeof NODE_COLORS)[number]["name"]
-
-/** Node centered on (cx, cy) at its shape's default size, so columns line up whatever the shape. */
-function node(id: string, label: string, shape: NodeShape, colorName: ColorName, cx: number, cy: number): CanvasNode {
-  const { width, height } = SHAPE_DEFAULT_SIZES[shape]
-  const { color, textColor } = NODE_COLORS.find((c) => c.name === colorName)!
-  return {
-    id,
-    type: "canvasNode",
-    position: { x: cx - width / 2, y: cy - height / 2 },
-    width,
-    height,
-    data: { label, color, textColor, shape },
-  }
-}
+const node = buildNode
 
 type Link = [source: string, target: string, label?: string]
 
-/** Edges between the facing sides of each node pair (handle IDs are the side names, see canvas-node.tsx). */
+/** Edges between the facing sides of each node pair. */
 function connect(nodes: CanvasNode[], links: Link[]): CanvasEdge[] {
-  const center = (id: string) => {
+  const find = (id: string) => {
     const n = nodes.find((candidate) => candidate.id === id)
     if (!n) throw new Error(`Template edge references unknown node "${id}"`)
-    return { x: n.position.x + n.width! / 2, y: n.position.y + n.height! / 2 }
+    return n
   }
-  return links.map(([source, target, label]) => {
-    const a = center(source)
-    const b = center(target)
-    const dx = b.x - a.x
-    const dy = b.y - a.y
-    const horizontal = Math.abs(dx) >= Math.abs(dy)
-    return {
-      id: `${source}->${target}`,
-      type: "canvasEdge",
-      source,
-      target,
-      sourceHandle: horizontal ? (dx >= 0 ? "right" : "left") : dy >= 0 ? "bottom" : "top",
-      targetHandle: horizontal ? (dx >= 0 ? "left" : "right") : dy >= 0 ? "top" : "bottom",
-      markerEnd: EDGE_MARKER_END,
-      data: label ? { label } : {},
-    }
-  })
+  return links.map(([source, target, label]) => buildEdge(find(source), find(target), label))
 }
 
 function template(id: string, name: string, description: string, nodes: CanvasNode[], links: Link[]): CanvasTemplate {

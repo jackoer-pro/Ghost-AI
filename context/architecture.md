@@ -54,6 +54,10 @@
 - Input: user prompt, project context, and current canvas state.
 - Execution: durable background task via Trigger.dev.
 - Output: structured node and edge updates written into the shared Liveblocks room.
+- Flow (`trigger/design-agent.ts`): read the room with `mutateFlow` (`@liveblocks/react-flow/node`, the server side of `useLiveblocksFlow`), ask Gemini (`@ai-sdk/google`, `generateText` + `Output.object`) for a list of actions, then apply them one `mutateFlow` call each, so collaborators watch the diagram build.
+- The model only proposes. `lib/design-actions.ts` validates and applies every action: shapes and colors come from `NODE_SHAPES` and the palette names, sizes from `SHAPE_DEFAULT_SIZES` (clamped to the UI's resize limits), and positions from grid cells (260px columns, 160px rows, the starter templates' spacing) with occupied cells skipped. Nodes and edges are built with `lib/canvas-builders.ts`, the same builders the starter templates use. An invalid action is skipped, never thrown.
+- Progress goes to the room's `ai-status-feed` Liveblocks feed (`types/tasks.ts` schema: `stage` + `text`). The agent appears as the participant `ghost-ai-agent` ("Ghost AI") via server-set presence (`cursor` follows each change, `thinking: true`), cleared with a 2s TTL when the run ends.
+- One run per project at a time (task queue limit 1, `concurrencyKey` = project ID); no retries, because actions aren't idempotent. A failed run keeps the changes already applied and posts an `error` status.
 
 ### Spec Generation
 
