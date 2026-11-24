@@ -130,3 +130,7 @@ Lucide React. Stroke-based icons only — no filled variants. Icon sizes: `h-4 w
 ## Presence
 
 Top-right canvas pill (`bg-surface/85`, `rounded-full`, blur): collaborator avatars `size-7` with `ring-2 ring-surface`, overlapping `-space-x-2`, max 5 then a `+N` chip (`bg-subtle`); initials sit on the person's cursor color with `text-bg-base`; a `h-5 w-px` divider only when collaborators exist; then the Clerk `UserButton` at `size-7`. Live cursors: 18px SVG pointer + name pill in the participant's `info.color` (from `cursorColor()`), dark `text-bg-base` text, constant on-screen size at any zoom.
+
+## AI Sidebar
+
+`components/editor/ai-sidebar.tsx`: floating slide-over on the right (`w-96`, same surface as the project sidebar). AI controls use the AI accent: primary buttons `bg-ai text-white`, active tab and icon tiles `bg-ai-dim text-ai-text`, starter chips `bg-subtle text-ai-text` pills. Chat bubbles: user = right, `border-2 border-brand/50 bg-accent-dim text-copy-primary`; assistant = left, `border border-surface-border bg-elevated text-ai-text`. Specs written for the upstream repo say `bg-accent` / `text-accent-text` / `text-primary-text` / `bg-brand-dim`; here those are `bg-ai` / `text-ai-text` / `text-copy-primary` / `bg-accent-dim` (`bg-accent` in this project is shadcn's grey `--accent`).
