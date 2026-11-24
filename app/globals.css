@@ -6,7 +6,8 @@
 
 @theme inline {
     /* Utility names from context/ui-context.md: bg-base, bg-surface, text-copy-*, border-surface-border, text-brand, bg-accent-dim, text-ai… */
-    --color-base: var(--bg-base);
+    /* No `--color-base`: it would also make the font-size class `text-base` set color: var(--bg-base)
+       (near-black text in dialog titles and inputs). `bg-base` is defined as its own utility below. */
     --color-surface: var(--bg-surface);
     --color-elevated: var(--bg-elevated);
     --color-subtle: var(--bg-subtle);
@@ -74,6 +75,10 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@utility bg-base {
+    background-color: var(--bg-base);
 }
 
 :root {

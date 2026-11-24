@@ -1,4 +1,4 @@
-import type { Edge, Node } from "@xyflow/react"
+import type { Edge, EdgeMarker, Node } from "@xyflow/react"
 
 // Shared canvas schema: user-created nodes, AI output and starter templates all use it
 // (architecture invariant 5).
@@ -40,3 +40,9 @@ export type CanvasEdgeData = {
 }
 
 export type CanvasEdge = Edge<CanvasEdgeData, "canvasEdge">
+
+/**
+ * Arrow at the end of every edge (ui-context "Edge Style"). A string literal, not `MarkerType.ArrowClosed`:
+ * @xyflow/react is a "use client" module and this file is also imported by server code.
+ */
+export const EDGE_MARKER_END: EdgeMarker = { type: "arrowclosed", color: "var(--edge-color)", width: 18, height: 18 }

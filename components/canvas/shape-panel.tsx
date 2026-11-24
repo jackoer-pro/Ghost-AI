@@ -2,6 +2,7 @@ import { Circle, Cylinder, Diamond, Hexagon, Pill, RectangleHorizontal, type Luc
 import { useRef, type DragEvent } from "react"
 
 import { NodeShapeBody } from "@/components/canvas/node-shape"
+import { Hint } from "@/components/hint"
 import { SHAPE_DEFAULT_SIZES, SHAPE_DRAG_TYPE, shapeDragPayload } from "@/lib/shape-drag"
 import { DEFAULT_NODE_COLOR, NODE_SHAPES, type NodeShape } from "@/types/canvas"
 
@@ -39,16 +40,16 @@ export function ShapePanel() {
         {NODE_SHAPES.map((shape) => {
           const Icon = SHAPE_ICONS[shape]
           return (
-            <div
-              key={shape}
-              draggable
-              onDragStart={(event) => onDragStart(event, shape)}
-              title={`Drag to add a ${shape}`}
-              aria-label={`${shape} shape`}
-              className="flex size-9 cursor-grab items-center justify-center rounded-full text-copy-muted transition-colors hover:bg-subtle hover:text-copy-primary active:cursor-grabbing"
-            >
-              <Icon className="size-5" aria-hidden />
-            </div>
+            <Hint key={shape} label={`Drag onto the canvas to add a ${shape}`}>
+              <div
+                draggable
+                onDragStart={(event) => onDragStart(event, shape)}
+                aria-label={`${shape} shape`}
+                className="flex size-9 cursor-grab items-center justify-center rounded-full text-copy-muted transition-colors hover:bg-subtle hover:text-copy-primary active:cursor-grabbing"
+              >
+                <Icon className="size-5" aria-hidden />
+              </div>
+            </Hint>
           )
         })}
       </div>

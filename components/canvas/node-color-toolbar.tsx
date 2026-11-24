@@ -1,6 +1,7 @@
 import { NodeToolbar, Position } from "@xyflow/react"
 import type { CSSProperties } from "react"
 
+import { Hint } from "@/components/hint"
 import { cn } from "@/lib/utils"
 import { NODE_COLORS } from "@/types/canvas"
 
@@ -26,23 +27,23 @@ export function NodeColorToolbar({ color, onSelect }: NodeColorToolbarProps) {
         {NODE_COLORS.map((pair) => {
           const active = pair.color.toLowerCase() === color.toLowerCase()
           return (
-            <button
-              key={pair.color}
-              type="button"
-              title={pair.name}
-              aria-label={pair.name}
-              aria-pressed={active}
-              onClick={() => onSelect({ color: pair.color, textColor: pair.textColor })}
-              style={{ backgroundColor: pair.color, "--swatch-text": pair.textColor } as CSSProperties}
-              className={cn(
-                "flex size-6 items-center justify-center rounded-full border border-[var(--swatch-text)]/50 transition-shadow outline-none",
-                // Tight glow in the pair's text color: small blur, small spread.
-                "hover:shadow-[0_0_0_1px_var(--swatch-text),0_0_6px_0_var(--swatch-text)] focus-visible:shadow-[0_0_0_1px_var(--swatch-text),0_0_6px_0_var(--swatch-text)]",
-                active && "ring-2 ring-copy-primary ring-offset-2 ring-offset-elevated",
-              )}
-            >
-              <span className="size-2 rounded-full bg-[var(--swatch-text)]" />
-            </button>
+            <Hint key={pair.color} label={`${pair.name} color`}>
+              <button
+                type="button"
+                aria-label={pair.name}
+                aria-pressed={active}
+                onClick={() => onSelect({ color: pair.color, textColor: pair.textColor })}
+                style={{ backgroundColor: pair.color, "--swatch-text": pair.textColor } as CSSProperties}
+                className={cn(
+                  "flex size-6 items-center justify-center rounded-full border border-[var(--swatch-text)]/50 transition-shadow outline-none",
+                  // Tight glow in the pair's text color: small blur, small spread.
+                  "hover:shadow-[0_0_0_1px_var(--swatch-text),0_0_6px_0_var(--swatch-text)] focus-visible:shadow-[0_0_0_1px_var(--swatch-text),0_0_6px_0_var(--swatch-text)]",
+                  active && "ring-2 ring-copy-primary ring-offset-2 ring-offset-elevated",
+                )}
+              >
+                <span className="size-2 rounded-full bg-[var(--swatch-text)]" />
+              </button>
+            </Hint>
           )
         })}
       </div>

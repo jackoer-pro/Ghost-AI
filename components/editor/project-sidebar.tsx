@@ -1,6 +1,7 @@
 import { FolderOpen, Pencil, Plus, Trash2, Users, X } from "lucide-react"
 import Link from "next/link"
 
+import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ProjectSummary } from "@/lib/projects"
@@ -61,23 +62,27 @@ export function ProjectSidebar({
               </Link>
               {project.isOwner && (
                 <div className="flex shrink-0 gap-0.5 md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onRename(project)}
-                    aria-label={`Rename ${project.name}`}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => onDelete(project)}
-                    aria-label={`Delete ${project.name}`}
-                    className="hover:text-destructive"
-                  >
-                    <Trash2 />
-                  </Button>
+                  <Hint label="Rename">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => onRename(project)}
+                      aria-label={`Rename ${project.name}`}
+                    >
+                      <Pencil />
+                    </Button>
+                  </Hint>
+                  <Hint label="Delete">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => onDelete(project)}
+                      aria-label={`Delete ${project.name}`}
+                      className="hover:text-destructive"
+                    >
+                      <Trash2 />
+                    </Button>
+                  </Hint>
                 </div>
               )}
             </li>
@@ -93,7 +98,7 @@ export function ProjectSidebar({
         <div
           aria-hidden
           onClick={onClose}
-          className="absolute inset-0 z-30 bg-base/60 backdrop-blur-sm md:hidden"
+          className="absolute inset-0 z-30 bg-bg-base/60 backdrop-blur-sm md:hidden"
         />
       )}
       <aside
@@ -106,9 +111,11 @@ export function ProjectSidebar({
       >
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-surface-border px-3">
           <h2 className="text-sm font-medium">Projects</h2>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close sidebar">
-            <X className="size-5" />
-          </Button>
+          <Hint label="Hide projects" side="right">
+            <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close sidebar">
+              <X className="size-5" />
+            </Button>
+          </Hint>
         </div>
 
         <Tabs defaultValue="my-projects" className="min-h-0 flex-1 overflow-y-auto p-3">

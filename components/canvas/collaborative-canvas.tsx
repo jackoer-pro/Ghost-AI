@@ -8,14 +8,15 @@ import {
   useCanUndo,
   useErrorListener,
   useRedo,
+  useRoom,
   useUndo,
+  useUpdateMyPresence,
 } from "@liveblocks/react/suspense"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
   Background,
   BackgroundVariant,
   ConnectionMode,
-  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
@@ -26,38 +27,50 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Loader2, Unplug } from "lucide-react"
-import { useState, type DragEvent } from "react"
+import { useEffect, useRef, useState, type DragEvent } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 
 import { CanvasControls } from "@/components/canvas/canvas-controls"
 import { CanvasEdge as CanvasEdgeView } from "@/components/canvas/canvas-edge"
 import { CanvasNode as CanvasNodeView } from "@/components/canvas/canvas-node"
+import { LiveCursors } from "@/components/canvas/live-cursors"
 import { MiniMapShape } from "@/components/canvas/node-shape"
+import { PresenceAvatars } from "@/components/canvas/presence-avatars"
 import { ShapePanel } from "@/components/canvas/shape-panel"
+import type { CanvasTemplate } from "@/components/editor/starter-templates"
+import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
 import { Button } from "@/components/ui/button"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { useKeyboardShortcuts, ZOOM_ANIMATION } from "@/hooks/use-keyboard-shortcuts"
 import { createShapeNode, parseShapeDragPayload, SHAPE_DRAG_TYPE } from "@/lib/shape-drag"
-import type { CanvasEdge, CanvasNode } from "@/types/canvas"
+import { EDGE_MARKER_END, type CanvasEdge, type CanvasNode } from "@/types/canvas"
 
 interface CollaborativeCanvasProps {
   /** Project ID, which is also the Liveblocks room ID. */
   roomId: string
+  /** Starter templates modal; its state lives in the shell because the navbar opens it. */
+  templatesOpen: boolean
+  onTemplatesOpenChange: (open: boolean) => void
 }
 
 // Client boundary for the shared canvas: joins the project's Liveblocks room
 // (token from /api/liveblocks-auth) and renders React Flow on the synced state.
-export function CollaborativeCanvas({ roomId }: CollaborativeCanvasProps) {
+export function CollaborativeCanvas({ roomId, templatesOpen, onTemplatesOpenChange }: CollaborativeCanvasProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
+    // throttle 16ms (default 100ms) so live cursors move smoothly.
+    <LiveblocksProvider authEndpoint="/api/liveblocks-auth" throttle={16}>
       <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
-        <ErrorBoundary fallback={<CanvasError />}>
-          <ConnectionErrorGuard />
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <ReactFlowProvider>
-              <Flow />
-            </ReactFlowProvider>
-          </ClientSideSuspense>
-        </ErrorBoundary>
+        <div className="relative size-full">
+          <ErrorBoundary fallback={<CanvasError />}>
+            <ConnectionErrorGuard />
+            <ClientSideSuspense fallback={<CanvasLoading />}>
+              <ReactFlowProvider>
+                <Flow templatesOpen={templatesOpen} onTemplatesOpenChange={onTemplatesOpenChange} />
+              </ReactFlowProvider>
+            </ClientSideSuspense>
+          </ErrorBoundary>
+          {/* Outside the error boundary, so the user menu stays reachable when the room fails. */}
+          <PresenceAvatars />
+        </div>
       </RoomProvider>
     </LiveblocksProvider>
   )
@@ -69,13 +82,14 @@ const edgeTypes: EdgeTypes = { canvasEdge: CanvasEdgeView }
 // React Flow merges these into every new connection before calling onConnect.
 const defaultEdgeOptions: DefaultEdgeOptions = {
   type: "canvasEdge",
-  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--edge-color)", width: 18, height: 18 },
+  markerEnd: EDGE_MARKER_END,
 }
 
 // Never zoom in past 100% when fitting a small diagram.
 const fitViewOptions = { maxZoom: 1 }
 
-function Flow() {
+// The modal renders inside the room (it's portaled, so where doesn't matter) so imports can write to storage.
+function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvasProps, "roomId">) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<CanvasNode, CanvasEdge>(
     { suspense: true, nodes: { initial: [] }, edges: { initial: [] } },
   )
@@ -90,6 +104,28 @@ function Flow() {
   // Fit only when the room already had nodes on load. In an empty room React Flow would wait for
   // the first dropped node and zoom in on it (to maxZoom 2), so drops would land on top of each other.
   const [fitOnLoad] = useState(nodes.length > 0)
+  const room = useRoom()
+  const fitAfterImport = useRef(false)
+  const updateMyPresence = useUpdateMyPresence()
+
+  // Replace, not merge: clear the canvas, then add the template, in one batch, so collaborators never see
+  // a half-loaded diagram and a single undo brings the previous canvas back.
+  // (`onNodesChange` ignores "remove" changes; deletion only goes through `onDelete`.)
+  function importTemplate(template: CanvasTemplate) {
+    room.batch(() => {
+      onDelete({ nodes, edges })
+      onNodesChange(template.nodes.map((item) => ({ type: "add", item })))
+      onEdgesChange(template.edges.map((item) => ({ type: "add", item })))
+    })
+    fitAfterImport.current = true
+  }
+
+  // Runs once the imported nodes have reached React Flow; fitView then waits until they're measured.
+  useEffect(() => {
+    if (!fitAfterImport.current) return
+    fitAfterImport.current = false
+    void flow.fitView({ ...fitViewOptions, ...ZOOM_ANIMATION })
+  }, [nodes, flow])
 
   function onDragOver(event: DragEvent) {
     if (!event.dataTransfer.types.includes(SHAPE_DRAG_TYPE)) return
@@ -114,6 +150,13 @@ function Flow() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onDelete={onDelete}
+        // Broadcast the pointer in flow coordinates, so it lands on the same spot for every viewer.
+        // Pointer, not mouse, events: d3 (node drag, pan) swallows window `mousemove` in the capture
+        // phase, so with onMouseMove a cursor would freeze for others while you drag a node.
+        onPointerMove={(event) =>
+          updateMyPresence({ cursor: screenToFlowPosition({ x: event.clientX, y: event.clientY }) })
+        }
+        onPointerLeave={() => updateMyPresence({ cursor: null })}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
@@ -139,9 +182,11 @@ function Flow() {
           // Hidden on phones: it would sit under the bottom-center shape panel.
           className="overflow-hidden rounded-xl border border-surface-border max-sm:hidden"
         />
+        <LiveCursors />
       </ReactFlow>
       <CanvasControls undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} fitViewOptions={fitViewOptions} />
       <ShapePanel />
+      <StarterTemplatesModal open={templatesOpen} onOpenChange={onTemplatesOpenChange} onImport={importTemplate} />
     </div>
   )
 }

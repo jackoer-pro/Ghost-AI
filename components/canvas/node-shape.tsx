@@ -15,7 +15,7 @@ interface NodeShapeBodyProps {
 
 // SVG outlines in a 100×100 viewBox. `preserveAspectRatio="none"` stretches them to the node's
 // size, and `vector-effect: non-scaling-stroke` keeps the border width constant while they stretch.
-const SVG_SHAPES: Partial<Record<NodeShape, ReactNode>> = {
+export const SVG_SHAPES: Partial<Record<NodeShape, ReactNode>> = {
   diamond: <polygon points="50,0 100,50 50,100 0,50" />,
   hexagon: <polygon points="25,0 75,0 100,50 75,100 25,100 0,50" />,
   cylinder: (
