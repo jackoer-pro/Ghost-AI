@@ -1,0 +1,134 @@
+import { SHAPE_DEFAULT_SIZES } from "@/lib/shape-drag"
+import { EDGE_MARKER_END, NODE_COLORS, type CanvasEdge, type CanvasNode, type NodeShape } from "@/types/canvas"
+
+/** A predefined diagram that replaces the canvas when imported. */
+export interface CanvasTemplate {
+  id: string
+  name: string
+  description: string
+  nodes: CanvasNode[]
+  edges: CanvasEdge[]
+}
+
+type ColorName = (typeof NODE_COLORS)[number]["name"]
+
+/** Node centered on (cx, cy) at its shape's default size, so columns line up whatever the shape. */
+function node(id: string, label: string, shape: NodeShape, colorName: ColorName, cx: number, cy: number): CanvasNode {
+  const { width, height } = SHAPE_DEFAULT_SIZES[shape]
+  const { color, textColor } = NODE_COLORS.find((c) => c.name === colorName)!
+  return {
+    id,
+    type: "canvasNode",
+    position: { x: cx - width / 2, y: cy - height / 2 },
+    width,
+    height,
+    data: { label, color, textColor, shape },
+  }
+}
+
+type Link = [source: string, target: string, label?: string]
+
+/** Edges between the facing sides of each node pair (handle IDs are the side names, see canvas-node.tsx). */
+function connect(nodes: CanvasNode[], links: Link[]): CanvasEdge[] {
+  const center = (id: string) => {
+    const n = nodes.find((candidate) => candidate.id === id)
+    if (!n) throw new Error(`Template edge references unknown node "${id}"`)
+    return { x: n.position.x + n.width! / 2, y: n.position.y + n.height! / 2 }
+  }
+  return links.map(([source, target, label]) => {
+    const a = center(source)
+    const b = center(target)
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const horizontal = Math.abs(dx) >= Math.abs(dy)
+    return {
+      id: `${source}->${target}`,
+      type: "canvasEdge",
+      source,
+      target,
+      sourceHandle: horizontal ? (dx >= 0 ? "right" : "left") : dy >= 0 ? "bottom" : "top",
+      targetHandle: horizontal ? (dx >= 0 ? "left" : "right") : dy >= 0 ? "top" : "bottom",
+      markerEnd: EDGE_MARKER_END,
+      data: label ? { label } : {},
+    }
+  })
+}
+
+function template(id: string, name: string, description: string, nodes: CanvasNode[], links: Link[]): CanvasTemplate {
+  return { id, name, description, nodes, edges: connect(nodes, links) }
+}
+
+export const CANVAS_TEMPLATES: CanvasTemplate[] = [
+  template(
+    "microservices",
+    "Microservices",
+    "An API gateway routing client traffic to independent services, each owning its own data store.",
+    [
+      node("ms-client", "Web client", "circle", "Neutral", 0, 200),
+      node("ms-gateway", "API gateway", "hexagon", "Blue", 230, 200),
+      node("ms-auth", "Auth service", "pill", "Purple", 500, 40),
+      node("ms-users", "User service", "pill", "Purple", 500, 200),
+      node("ms-orders", "Order service", "pill", "Purple", 500, 360),
+      node("ms-cache", "Session cache", "cylinder", "Teal", 760, 40),
+      node("ms-users-db", "Users DB", "cylinder", "Teal", 760, 200),
+      node("ms-orders-db", "Orders DB", "cylinder", "Teal", 760, 360),
+    ],
+    [
+      ["ms-client", "ms-gateway", "HTTPS"],
+      ["ms-gateway", "ms-auth"],
+      ["ms-gateway", "ms-users"],
+      ["ms-gateway", "ms-orders"],
+      ["ms-auth", "ms-cache"],
+      ["ms-users", "ms-users-db"],
+      ["ms-orders", "ms-orders-db"],
+    ],
+  ),
+  template(
+    "ci-cd-pipeline",
+    "CI/CD pipeline",
+    "From a pushed commit through build, tests and a quality gate to staging and production.",
+    [
+      node("ci-commit", "Git push", "circle", "Neutral", 0, 0),
+      node("ci-build", "Build", "rectangle", "Blue", 220, 0),
+      node("ci-test", "Run tests", "rectangle", "Blue", 440, 0),
+      node("ci-gate", "Tests pass?", "diamond", "Orange", 670, 0),
+      node("ci-staging", "Deploy to staging", "pill", "Green", 910, 0),
+      node("ci-prod", "Deploy to production", "pill", "Green", 1140, 0),
+      node("ci-registry", "Artifact registry", "cylinder", "Teal", 220, 200),
+      node("ci-notify", "Notify team", "rectangle", "Red", 670, 230),
+    ],
+    [
+      ["ci-commit", "ci-build", "push"],
+      ["ci-build", "ci-test"],
+      ["ci-build", "ci-registry", "image"],
+      ["ci-test", "ci-gate"],
+      ["ci-gate", "ci-staging", "yes"],
+      ["ci-gate", "ci-notify", "no"],
+      ["ci-staging", "ci-prod", "approve"],
+    ],
+  ),
+  template(
+    "event-driven",
+    "Event-driven system",
+    "Producers publish events to a shared bus; independent consumers react to them asynchronously.",
+    [
+      node("ev-checkout", "Checkout service", "pill", "Purple", 0, 80),
+      node("ev-payments", "Payment service", "pill", "Purple", 0, 280),
+      node("ev-bus", "Event bus", "hexagon", "Orange", 260, 180),
+      node("ev-email", "Email worker", "rectangle", "Blue", 520, 20),
+      node("ev-shipping", "Shipping worker", "rectangle", "Blue", 520, 180),
+      node("ev-analytics", "Analytics worker", "rectangle", "Blue", 520, 340),
+      node("ev-provider", "Email provider", "hexagon", "Pink", 780, 20),
+      node("ev-warehouse", "Data warehouse", "cylinder", "Teal", 780, 340),
+    ],
+    [
+      ["ev-checkout", "ev-bus", "order.placed"],
+      ["ev-payments", "ev-bus", "payment.settled"],
+      ["ev-bus", "ev-email"],
+      ["ev-bus", "ev-shipping"],
+      ["ev-bus", "ev-analytics"],
+      ["ev-email", "ev-provider"],
+      ["ev-analytics", "ev-warehouse"],
+    ],
+  ),
+]

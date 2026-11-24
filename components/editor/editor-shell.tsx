@@ -6,6 +6,7 @@ import { useState } from "react"
 import { CollaborativeCanvas } from "@/components/canvas/collaborative-canvas"
 import { EditorHome } from "@/components/editor/editor-home"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
+import { Hint } from "@/components/hint"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { ShareDialog } from "@/components/editor/share-dialog"
@@ -28,6 +29,7 @@ interface EditorShellProps {
 export function EditorShell({ owned, shared, project }: EditorShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false)
   const actions = useProjectActions()
   // Always called (hooks can't be conditional); it only fetches once opened, which needs a project.
   const share = useShareDialog(project?.id ?? "")
@@ -44,6 +46,7 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
             isAiSidebarOpen,
             onToggleAiSidebar: () => setIsAiSidebarOpen((open) => !open),
             onShare: share.open,
+            onOpenTemplates: () => setIsTemplatesOpen(true),
           }
         }
       />
@@ -61,7 +64,12 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
 
         {project ? (
           // Keyed so switching projects resets the room's error/loading state.
-          <CollaborativeCanvas key={project.id} roomId={project.id} />
+          <CollaborativeCanvas
+            key={project.id}
+            roomId={project.id}
+            templatesOpen={isTemplatesOpen}
+            onTemplatesOpenChange={setIsTemplatesOpen}
+          />
         ) : (
           <EditorHome onNewProject={actions.openCreate} />
         )}
@@ -81,14 +89,16 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
                 <Sparkles className="size-4 text-ai-text" aria-hidden />
                 AI assistant
               </h2>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setIsAiSidebarOpen(false)}
-                aria-label="Close AI sidebar"
-              >
-                <X className="size-5" />
-              </Button>
+              <Hint label="Close AI assistant" side="left">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setIsAiSidebarOpen(false)}
+                  aria-label="Close AI sidebar"
+                >
+                  <X className="size-5" />
+                </Button>
+              </Hint>
             </div>
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
               <Sparkles className="size-8 text-ai-text" aria-hidden />
