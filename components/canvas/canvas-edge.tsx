@@ -1,6 +1,8 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow, type EdgeProps } from "@xyflow/react"
+import { Trash2 } from "lucide-react"
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 
+import { Hint } from "@/components/hint"
 import { cn } from "@/lib/utils"
 import type { CanvasEdge as CanvasEdgeType } from "@/types/canvas"
 
@@ -25,7 +27,7 @@ export function CanvasEdge({
     targetPosition,
     borderRadius: 8,
   })
-  const { updateEdgeData } = useReactFlow()
+  const { updateEdgeData, deleteElements } = useReactFlow()
   const [draft, setDraft] = useState<string | null>(null) // null = not editing
   const label = data?.label ?? ""
   const pathGroup = useRef<SVGGElement>(null)
@@ -70,7 +72,9 @@ export function CanvasEdge({
       <EdgeLabelRenderer>
         <div
           // nodrag/nopan: React Flow ignores pointer events from these for dragging and panning.
-          className="nodrag nopan absolute"
+          // Selected: above nodes (selected ones sit at z 1000), so a midpoint near a node doesn't hide the
+          // delete button or label editor. The label layer forms no stacking context, so this competes with nodes.
+          className={cn("nodrag nopan absolute flex items-center gap-1", (selected || draft !== null) && "z-[1001]")}
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: "all" }}
           onDoubleClick={() => setDraft(label)}
         >
@@ -92,6 +96,19 @@ export function CanvasEdge({
           ) : selected ? (
             <span className="text-xs whitespace-nowrap text-copy-faint">Double-click to label</span>
           ) : null}
+          {selected && draft === null && (
+            <Hint label="Delete connection (Del)">
+              <button
+                type="button"
+                aria-label="Delete connection"
+                // Goes through onDelete, i.e. the Liveblocks-synced edge state.
+                onClick={() => void deleteElements({ edges: [{ id }] })}
+                className="flex size-6 items-center justify-center rounded-full border border-surface-border bg-elevated text-copy-muted transition-colors outline-none hover:text-state-error focus-visible:text-state-error"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </Hint>
+          )}
         </div>
       </EdgeLabelRenderer>
     </>

@@ -9,6 +9,7 @@ import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { ShareDialog } from "@/components/editor/share-dialog"
+import type { CanvasAutosave } from "@/hooks/use-canvas-autosave"
 import { useProjectActions } from "@/hooks/use-project-actions"
 import { useShareDialog } from "@/hooks/use-share-dialog"
 import type { ProjectSummary } from "@/lib/projects"
@@ -27,6 +28,7 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false)
+  const [autosave, setAutosave] = useState<CanvasAutosave | null>(null)
   const actions = useProjectActions()
   // Always called (hooks can't be conditional); it only fetches once opened, which needs a project.
   const share = useShareDialog(project?.id ?? "")
@@ -44,6 +46,7 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
             onToggleAiSidebar: () => setIsAiSidebarOpen((open) => !open),
             onShare: share.open,
             onOpenTemplates: () => setIsTemplatesOpen(true),
+            autosave,
           }
         }
       />
@@ -66,6 +69,7 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
             roomId={project.id}
             templatesOpen={isTemplatesOpen}
             onTemplatesOpenChange={setIsTemplatesOpen}
+            onAutosaveChange={setAutosave}
           />
         ) : (
           <EditorHome onNewProject={actions.openCreate} />

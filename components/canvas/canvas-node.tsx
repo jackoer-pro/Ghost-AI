@@ -5,7 +5,7 @@ import { useEffect, useState, type KeyboardEvent } from "react"
 import { NodeColorToolbar } from "@/components/canvas/node-color-toolbar"
 import { NodeShapeBody } from "@/components/canvas/node-shape"
 import { cn } from "@/lib/utils"
-import { DEFAULT_NODE_TEXT_COLOR, type CanvasNode as CanvasNodeType } from "@/types/canvas"
+import { resolveNodeColors, type CanvasNode as CanvasNodeType } from "@/types/canvas"
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 
@@ -16,7 +16,7 @@ const MIN_HEIGHT = 40
 const PLACEHOLDER = "Label"
 
 export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
-  const { updateNodeData } = useReactFlow<CanvasNodeType>()
+  const { updateNodeData, deleteElements } = useReactFlow<CanvasNodeType>()
   const [editing, setEditing] = useState(false)
   const history = useHistory()
   const label = data.label
@@ -28,7 +28,7 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
     history.pause()
     return () => history.resume()
   }, [editing, history])
-  const textColor = data.textColor ?? DEFAULT_NODE_TEXT_COLOR
+  const { color, textColor } = resolveNodeColors(data)
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Escape") event.currentTarget.blur() // blur closes editing
@@ -37,7 +37,12 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
   return (
     <>
       {/* Writes go through onNodesChange ("replace") into Liveblocks storage, like label edits. */}
-      <NodeColorToolbar color={data.color} onSelect={(pair) => updateNodeData(id, pair)} />
+      <NodeColorToolbar
+        color={color}
+        onSelect={(pair) => updateNodeData(id, pair)}
+        // deleteElements also removes the node's edges and goes through onDelete, i.e. Liveblocks.
+        onDelete={() => void deleteElements({ nodes: [{ id }] })}
+      />
       {/* Resizing emits "dimensions" changes through onNodesChange, i.e. the Liveblocks-synced node state. */}
       <NodeResizer
         isVisible={selected && !editing}
@@ -49,17 +54,17 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
       {/* nopan: React Flow's zoom filter would otherwise zoom the canvas in on a node double-click.
           Node dragging only checks `nodrag`, so it still works. */}
       <div className="canvas-node nopan size-full">
-        <NodeShapeBody shape={data.shape} color={data.color} selected={selected}>
+        <NodeShapeBody shape={data.shape} color={color} selected={selected}>
           <div className="relative" onDoubleClick={() => setEditing(true)}>
             {/* Always rendered so it sizes the box: the textarea sits exactly on top of it, no layout shift.
                 The trailing space keeps a final newline's empty line visible. */}
             <span
               className={cn(
                 "block text-center text-sm whitespace-pre-wrap break-words select-none",
-                !label && "text-copy-faint",
+                !label && "opacity-60", // placeholder: the label color, dimmed, so it reads on any fill
                 editing && "invisible",
               )}
-              style={label ? { color: textColor } : undefined}
+              style={{ color: textColor }}
             >
               {label ? label + (label.endsWith("\n") ? " " : "") : PLACEHOLDER}
             </span>
@@ -75,7 +80,7 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
                 onKeyDown={onKeyDown}
                 aria-label="Node label"
                 // nodrag/nopan/nowheel: React Flow ignores these pointer and wheel events for drag, pan and zoom.
-                className="nodrag nopan nowheel absolute inset-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-center text-sm whitespace-pre-wrap break-words outline-none placeholder:text-copy-faint"
+                className="nodrag nopan nowheel absolute inset-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-center text-sm whitespace-pre-wrap break-words outline-none placeholder:text-current placeholder:opacity-60"
                 style={{ color: textColor }}
               />
             ) : null}
