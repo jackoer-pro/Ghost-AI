@@ -80,9 +80,12 @@ export function EditorNavbar({ isSidebarOpen, onToggleSidebar, workspace }: Edit
             </Hint>
           </>
         )}
-        <div className="ml-1 flex items-center">
-          <UserButton />
-        </div>
+        {/* In a workspace the user's button moves into the canvas presence group (PresenceAvatars). */}
+        {!workspace && (
+          <div className="ml-1 flex items-center">
+            <UserButton />
+          </div>
+        )}
       </div>
     </header>
   )

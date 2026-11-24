@@ -10,6 +10,7 @@ import {
   useRedo,
   useRoom,
   useUndo,
+  useUpdateMyPresence,
 } from "@liveblocks/react/suspense"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
@@ -32,7 +33,9 @@ import { ErrorBoundary } from "react-error-boundary"
 import { CanvasControls } from "@/components/canvas/canvas-controls"
 import { CanvasEdge as CanvasEdgeView } from "@/components/canvas/canvas-edge"
 import { CanvasNode as CanvasNodeView } from "@/components/canvas/canvas-node"
+import { LiveCursors } from "@/components/canvas/live-cursors"
 import { MiniMapShape } from "@/components/canvas/node-shape"
+import { PresenceAvatars } from "@/components/canvas/presence-avatars"
 import { ShapePanel } from "@/components/canvas/shape-panel"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
@@ -53,16 +56,21 @@ interface CollaborativeCanvasProps {
 // (token from /api/liveblocks-auth) and renders React Flow on the synced state.
 export function CollaborativeCanvas({ roomId, templatesOpen, onTemplatesOpenChange }: CollaborativeCanvasProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
+    // throttle 16ms (default 100ms) so live cursors move smoothly.
+    <LiveblocksProvider authEndpoint="/api/liveblocks-auth" throttle={16}>
       <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
-        <ErrorBoundary fallback={<CanvasError />}>
-          <ConnectionErrorGuard />
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <ReactFlowProvider>
-              <Flow templatesOpen={templatesOpen} onTemplatesOpenChange={onTemplatesOpenChange} />
-            </ReactFlowProvider>
-          </ClientSideSuspense>
-        </ErrorBoundary>
+        <div className="relative size-full">
+          <ErrorBoundary fallback={<CanvasError />}>
+            <ConnectionErrorGuard />
+            <ClientSideSuspense fallback={<CanvasLoading />}>
+              <ReactFlowProvider>
+                <Flow templatesOpen={templatesOpen} onTemplatesOpenChange={onTemplatesOpenChange} />
+              </ReactFlowProvider>
+            </ClientSideSuspense>
+          </ErrorBoundary>
+          {/* Outside the error boundary, so the user menu stays reachable when the room fails. */}
+          <PresenceAvatars />
+        </div>
       </RoomProvider>
     </LiveblocksProvider>
   )
@@ -98,6 +106,7 @@ function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvas
   const [fitOnLoad] = useState(nodes.length > 0)
   const room = useRoom()
   const fitAfterImport = useRef(false)
+  const updateMyPresence = useUpdateMyPresence()
 
   // Replace, not merge: clear the canvas, then add the template, in one batch, so collaborators never see
   // a half-loaded diagram and a single undo brings the previous canvas back.
@@ -141,6 +150,13 @@ function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvas
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onDelete={onDelete}
+        // Broadcast the pointer in flow coordinates, so it lands on the same spot for every viewer.
+        // Pointer, not mouse, events: d3 (node drag, pan) swallows window `mousemove` in the capture
+        // phase, so with onMouseMove a cursor would freeze for others while you drag a node.
+        onPointerMove={(event) =>
+          updateMyPresence({ cursor: screenToFlowPosition({ x: event.clientX, y: event.clientY }) })
+        }
+        onPointerLeave={() => updateMyPresence({ cursor: null })}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
@@ -166,6 +182,7 @@ function Flow({ templatesOpen, onTemplatesOpenChange }: Omit<CollaborativeCanvas
           // Hidden on phones: it would sit under the bottom-center shape panel.
           className="overflow-hidden rounded-xl border border-surface-border max-sm:hidden"
         />
+        <LiveCursors />
       </ReactFlow>
       <CanvasControls undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} fitViewOptions={fitViewOptions} />
       <ShapePanel />

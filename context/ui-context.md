@@ -126,3 +126,7 @@ Every icon-only control is wrapped in `<Hint label="…">` (`components/hint.tsx
 ## Icons
 
 Lucide React. Stroke-based icons only — no filled variants. Icon sizes: `h-4 w-4` for inline, `h-5 w-5` for buttons, `h-8 w-8` for feature icons in empty states.
+
+## Presence
+
+Top-right canvas pill (`bg-surface/85`, `rounded-full`, blur): collaborator avatars `size-7` with `ring-2 ring-surface`, overlapping `-space-x-2`, max 5 then a `+N` chip (`bg-subtle`); initials sit on the person's cursor color with `text-bg-base`; a `h-5 w-px` divider only when collaborators exist; then the Clerk `UserButton` at `size-7`. Live cursors: 18px SVG pointer + name pill in the participant's `info.color` (from `cursorColor()`), dark `text-bg-base` text, constant on-screen size at any zoom.
