@@ -4,14 +4,13 @@ import { useEffect, useState, type KeyboardEvent } from "react"
 
 import { NodeColorToolbar } from "@/components/canvas/node-color-toolbar"
 import { NodeShapeBody } from "@/components/canvas/node-shape"
+import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "@/lib/canvas-builders"
 import { cn } from "@/lib/utils"
 import { resolveNodeColors, type CanvasNode as CanvasNodeType } from "@/types/canvas"
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left]
 
 // Smallest size a node can be resized to; below this the label no longer fits any shape.
-const MIN_WIDTH = 80
-const MIN_HEIGHT = 40
 
 const PLACEHOLDER = "Label"
 
@@ -46,8 +45,8 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
       {/* Resizing emits "dimensions" changes through onNodesChange, i.e. the Liveblocks-synced node state. */}
       <NodeResizer
         isVisible={selected && !editing}
-        minWidth={MIN_WIDTH}
-        minHeight={MIN_HEIGHT}
+        minWidth={MIN_NODE_WIDTH}
+        minHeight={MIN_NODE_HEIGHT}
         handleClassName="canvas-resize-handle"
         lineClassName="canvas-resize-line"
       />

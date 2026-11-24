@@ -34,7 +34,8 @@ export async function POST(req: Request) {
     const handle = await tasks.trigger<typeof designAgent>(
       "design-agent",
       { prompt: prompt.trim(), roomId: projectId },
-      { tags: [`project:${projectId}`] }
+      // concurrencyKey: one design run per project at a time (the task's queue limit is 1); others wait.
+      { tags: [`project:${projectId}`], concurrencyKey: projectId }
     )
     runId = handle.id
   } catch (err) {
