@@ -70,12 +70,13 @@ export function EditorShell({ owned, shared, project }: EditorShellProps) {
             templatesOpen={isTemplatesOpen}
             onTemplatesOpenChange={setIsTemplatesOpen}
             onAutosaveChange={setAutosave}
-          />
+          >
+            {/* Inside the room: the sidebar reads the shared AI status feed and presence. */}
+            <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />
+          </CollaborativeCanvas>
         ) : (
           <EditorHome onNewProject={actions.openCreate} />
         )}
-
-        {project && <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />}
       </main>
 
       <ProjectDialogs actions={actions} />

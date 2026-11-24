@@ -1,6 +1,7 @@
 "use client"
 
-import { Bot, Download, FileText, SendHorizontal, Sparkles, X } from "lucide-react"
+import { useFeedMessages, useOthers } from "@liveblocks/react"
+import { Bot, Download, FileText, Loader2, SendHorizontal, Sparkles, X } from "lucide-react"
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 
 import { Hint } from "@/components/hint"
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { AI_STATUS_FEED_ID, aiStatusMessageSchema, type AiStatusMessage } from "@/types/tasks"
 
 interface AiSidebarProps {
   isOpen: boolean
@@ -30,8 +32,23 @@ const STARTER_PROMPTS = [
 const tabClass =
   "text-copy-muted data-active:bg-ai-dim data-active:text-ai-text dark:data-active:border-transparent dark:data-active:bg-ai-dim dark:data-active:text-ai-text"
 
+/**
+ * Shared AI activity for the room. `isGenerating` comes from presence (the agent sets `thinking`, and its
+ * presence has a TTL, so a crashed run can't leave the sidebar locked); `status` is the newest valid
+ * `ai-status-feed` message. Non-suspense hooks: the sidebar must render while the room still connects.
+ */
+function useAiActivity(): { isGenerating: boolean; status: AiStatusMessage | null } {
+  const isGenerating = useOthers((others) => others.some((other) => other.presence.thinking))
+  // A missing feed (no run yet in this room) comes back as an error; that just means no status.
+  const { messages } = useFeedMessages(AI_STATUS_FEED_ID)
+  const latest = messages?.at(-1) // sorted oldest → newest
+  const parsed = latest ? aiStatusMessageSchema.safeParse(latest.data) : null
+  return { isGenerating, status: parsed?.success && parsed.data.text ? parsed.data : null }
+}
+
 // Slide-over AI sidebar on the right of the canvas. Open state is owned by the parent (editor shell).
 export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
+  const { isGenerating, status } = useAiActivity()
   return (
     <aside
       inert={!isOpen}
@@ -56,6 +73,8 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
         </Hint>
       </header>
 
+      <AiStatus isGenerating={isGenerating} status={status} />
+
       <Tabs defaultValue="architect" className="min-h-0 flex-1 gap-0">
         <div className="shrink-0 px-3 pt-3">
           <TabsList className="w-full bg-subtle">
@@ -71,7 +90,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
         </div>
         {/* keepMounted: Base UI unmounts inactive panels, which would wipe the chat and draft on a tab switch. */}
         <TabsContent value="architect" keepMounted className="flex min-h-0 flex-col">
-          <ArchitectChat />
+          <ArchitectChat isGenerating={isGenerating} />
         </TabsContent>
         <TabsContent value="specs" className="min-h-0 overflow-y-auto p-3">
           <SpecsPanel />
@@ -82,7 +101,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
 }
 
 // ponytail: messages live in local state; feature 25 replaces them with the room's `ai-chat` feed.
-function ArchitectChat() {
+function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState("")
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -96,7 +115,7 @@ function ArchitectChat() {
   function send(event?: FormEvent) {
     event?.preventDefault()
     const content = draft.trim()
-    if (!content) return
+    if (!content || isGenerating) return
     setMessages((list) => [...list, { id: crypto.randomUUID(), role: "user", content }])
     setDraft("")
   }
@@ -166,26 +185,51 @@ function ArchitectChat() {
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Describe the system you want to design…"
+            disabled={isGenerating}
+            placeholder={isGenerating ? "Ghost AI is working…" : "Describe the system you want to design…"}
             aria-label="Message Ghost AI"
             rows={3}
             className="max-h-40 min-h-[72px] resize-none rounded-xl bg-elevated pr-12 dark:bg-elevated"
           />
-          <Hint label="Send (Enter)" side="top">
+          <Hint label={isGenerating ? "Ghost AI is working" : "Send (Enter)"} side="top">
             <Button
               type="submit"
               size="icon-sm"
-              disabled={!draft.trim()}
-              aria-label="Send message"
+              disabled={!draft.trim() || isGenerating}
+              aria-label={isGenerating ? "Ghost AI is working" : "Send message"}
               className="absolute right-2 bottom-2 bg-ai text-white hover:bg-ai/85"
             >
-              <SendHorizontal />
+              {isGenerating ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
             </Button>
           </Hint>
         </div>
         <p className="mt-1.5 text-[11px] text-copy-faint">Enter to send · Shift+Enter for a new line</p>
       </form>
     </>
+  )
+}
+
+// One-line strip under the header: only the newest status, never the history.
+function AiStatus({ isGenerating, status }: { isGenerating: boolean; status: AiStatusMessage | null }) {
+  // While someone is generating, show a spinner even before the first status message lands.
+  if (!status && !isGenerating) return null
+  const isError = !isGenerating && status?.stage === "error"
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "flex shrink-0 items-center gap-2 border-b border-surface-border px-3 py-2 text-xs",
+        isError ? "text-state-error" : isGenerating ? "text-ai-text" : "text-copy-muted"
+      )}
+    >
+      {isGenerating ? (
+        <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+      ) : (
+        <Sparkles className="size-3.5 shrink-0" aria-hidden />
+      )}
+      <span className="min-w-0 truncate">{status?.text ?? "Ghost AI is working…"}</span>
+    </div>
   )
 }
 
