@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Features 01–24 done. Next: feature 25. `TRIGGER_SECRET_KEY` and `GEMINI_API_KEY` are in `.env.local`. Production needs `TRIGGER_SECRET_KEY` (prod key) on Vercel, **`LIVEBLOCKS_SECRET_KEY` and `GEMINI_API_KEY` in the Trigger.dev prod environment** (tasks run there, not on Vercel), and `npx trigger.dev deploy`. The project ref is in `trigger.config.ts`. `LIVEBLOCKS_SECRET_KEY` and `BLOB_READ_WRITE_TOKEN` are in `.env.local`; `BLOB_READ_WRITE_TOKEN` must also be set on Vercel.
+- Features 01–25 done. Next: feature 26. `TRIGGER_SECRET_KEY` and `GEMINI_API_KEY` are in `.env.local`. Production needs `TRIGGER_SECRET_KEY` (prod key) on Vercel, **`LIVEBLOCKS_SECRET_KEY` and `GEMINI_API_KEY` in the Trigger.dev prod environment** (tasks run there, not on Vercel), and `npx trigger.dev deploy`. The project ref is in `trigger.config.ts`. `LIVEBLOCKS_SECRET_KEY` and `BLOB_READ_WRITE_TOKEN` are in `.env.local`; `BLOB_READ_WRITE_TOKEN` must also be set on Vercel.
 
 ## Completed
 
@@ -92,6 +92,14 @@ change.
   - `LiveCursors`: a spinner in the name badge when `presence.thinking` is true.
   - Checked: `tsc`, `eslint`, `npm run build`. Not yet checked in a browser against a live agent run.
   - Known: the feed grows ~4 messages per run with no cleanup; if the first page the server returns isn't the newest, a room with long history could show an old status on load until the next message arrives (realtime adds are always merged). Revisit if seen.
+
+- Feature 25 sidebar chat feed (2026-11-25, branch `feature/25-sidebar-chat-feed`). No AI replies, no tasks triggered.
+  - `types/tasks.ts`: `AI_CHAT_FEED_ID = "ai-chat"`, `ROOM_FEED_IDS`, `MAX_CHAT_MESSAGE_LENGTH` (4000, same as the design prompt), `aiChatMessageSchema` (`sender {id, name}`, `role` user | assistant, trimmed non-empty `content`, `timestamp` ms).
+  - `ArchitectChat` now reads `useFeedMessages("ai-chat")` (local state removed), validates each message with `safeParse` and drops invalid ones, and shows sender ("You" for your own), time and content. Own messages right/brand, others' left/subtle, `assistant` left/AI text. Loading and load-error states added. Sending uses `useCreateFeedMessage` with the sender from `useSelf`; the draft clears only after the server accepts it; a failure keeps the text and shows a red hint (`role="alert"`) that clears on typing. The send button spins while sending; input is disabled until the room connects and while AI is generating.
+  - **Bug fixed (also affected feature 24):** `useFeedMessages` on a feed that doesn't exist yet errors once and never retries (`autoRetry: false` in `@liveblocks/react` 3.25), hiding every later message. So in a new room the first AI run's status never showed until a reload. `ensureRoomFeeds()` in `lib/liveblocks.ts` now creates both feeds (409 ignored, other errors logged) in `/api/liveblocks-auth` before the token is issued; the design agent's own `ensureStatusFeed` was replaced by the same helper.
+  - Speed follow-up: `ensureRoomFeeds()` remembers rooms whose feeds are set up (per server instance; a failed setup isn't remembered, so it retries), and the auth route runs it in parallel with `session.authorize()`. Live check on a throwaway room (deleted after): first call 2.2 s, repeat 0 ms, both feeds present, a chat write accepted.
+  - Checked: `tsc`, `eslint --max-warnings 0`, `npm run build`, schema asserts (valid, blank content, bad role, empty sender id, status payload rejected). Not yet checked in a browser with two users.
+  - Known: `sender` is set by the client, so a room member could post under another name with a hand-crafted request; fixing that needs a server relay. The chat feed has no history limit or cleanup.
 
 ## In Progress
 

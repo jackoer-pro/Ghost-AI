@@ -1,6 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { mutateFlow } from "@liveblocks/react-flow/node"
-import { LiveblocksError } from "@liveblocks/node"
 import { logger, task } from "@trigger.dev/sdk"
 import { generateText, Output } from "ai"
 
@@ -14,7 +13,7 @@ import {
   type ApplyContext,
   type ApplyResult,
 } from "@/lib/design-actions"
-import { getLiveblocks } from "@/lib/liveblocks"
+import { ensureRoomFeeds, getLiveblocks } from "@/lib/liveblocks"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 import { AI_STATUS_FEED_ID, type AiStatusMessage } from "@/types/tasks"
 
@@ -57,7 +56,7 @@ export const designAgent = task({
         .setPresence(roomId, { ...AGENT, data, ttl })
         .catch((err) => logger.warn("Presence update failed", { error: String(err) }))
 
-    await ensureStatusFeed(roomId)
+    await ensureRoomFeeds(roomId) // normally done when someone opens the room; covers one nobody has
     let cursor: { x: number; y: number } | null = null
 
     try {
@@ -129,13 +128,3 @@ export const designAgent = task({
     }
   },
 })
-
-/** Creates the room's status feed on first use; an existing feed (409) is fine. */
-async function ensureStatusFeed(roomId: string) {
-  try {
-    await getLiveblocks().createFeed({ roomId, feedId: AI_STATUS_FEED_ID })
-  } catch (err) {
-    if (err instanceof LiveblocksError && err.status === 409) return
-    logger.warn("Status feed setup failed", { error: String(err) })
-  }
-}

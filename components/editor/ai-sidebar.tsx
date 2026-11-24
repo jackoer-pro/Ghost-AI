@@ -1,6 +1,6 @@
 "use client"
 
-import { useFeedMessages, useOthers } from "@liveblocks/react"
+import { shallow, useCreateFeedMessage, useFeedMessages, useOthers, useSelf } from "@liveblocks/react"
 import { Bot, Download, FileText, Loader2, SendHorizontal, Sparkles, X } from "lucide-react"
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 
@@ -9,17 +9,19 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { AI_STATUS_FEED_ID, aiStatusMessageSchema, type AiStatusMessage } from "@/types/tasks"
+import {
+  AI_CHAT_FEED_ID,
+  AI_STATUS_FEED_ID,
+  aiChatMessageSchema,
+  aiStatusMessageSchema,
+  MAX_CHAT_MESSAGE_LENGTH,
+  type AiChatMessage,
+  type AiStatusMessage,
+} from "@/types/tasks"
 
 interface AiSidebarProps {
   isOpen: boolean
   onClose: () => void
-}
-
-interface ChatMessage {
-  id: string
-  role: "user" | "assistant"
-  content: string
 }
 
 const STARTER_PROMPTS = [
@@ -39,7 +41,6 @@ const tabClass =
  */
 function useAiActivity(): { isGenerating: boolean; status: AiStatusMessage | null } {
   const isGenerating = useOthers((others) => others.some((other) => other.presence.thinking))
-  // A missing feed (no run yet in this room) comes back as an error; that just means no status.
   const { messages } = useFeedMessages(AI_STATUS_FEED_ID)
   const latest = messages?.at(-1) // sorted oldest → newest
   const parsed = latest ? aiStatusMessageSchema.safeParse(latest.data) : null
@@ -100,30 +101,54 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
   )
 }
 
-// ponytail: messages live in local state; feature 25 replaces them with the room's `ai-chat` feed.
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
+
+// Room chat on the `ai-chat` feed: everyone in the project sees the same messages live.
 function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const { messages, isLoading, error: loadError } = useFeedMessages(AI_CHAT_FEED_ID)
+  const createFeedMessage = useCreateFeedMessage()
+  // null until the room connects, so sending waits for a known sender.
+  const me = useSelf((self) => ({ id: self.id, name: self.info.name }), shallow)
   const [draft, setDraft] = useState("")
+  const [isSending, setIsSending] = useState(false)
+  const [sendError, setSendError] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Feed data is untrusted (any room member can write to it): drop anything that doesn't match the schema.
+  const chat = (messages ?? []).flatMap((message) => {
+    const parsed = aiChatMessageSchema.safeParse(message.data)
+    return parsed.success ? [{ id: message.id, ...parsed.data }] : []
+  })
 
   // Keep the newest message in view.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-  }, [messages.length])
+  }, [chat.length])
 
-  function send(event?: FormEvent) {
+  const canSend = !!me && !isGenerating && !isSending
+
+  async function send(event?: FormEvent) {
     event?.preventDefault()
     const content = draft.trim()
-    if (!content || isGenerating) return
-    setMessages((list) => [...list, { id: crypto.randomUUID(), role: "user", content }])
-    setDraft("")
+    if (!content || !me || !canSend) return
+    const message: AiChatMessage = { sender: me, role: "user", content, timestamp: Date.now() }
+    setIsSending(true)
+    setSendError(false)
+    try {
+      await createFeedMessage(AI_CHAT_FEED_ID, message)
+      setDraft("") // only once the server accepted it, so a failed send keeps the text
+    } catch {
+      setSendError(true)
+    } finally {
+      setIsSending(false)
+    }
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     // Enter sends, Shift+Enter is a newline. Skip while an IME is composing (e.g. Vietnamese Telex, Japanese),
     // where Enter confirms the composed text.
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) send(event)
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) void send(event)
   }
 
   function pickStarter(prompt: string) {
@@ -134,7 +159,16 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
   return (
     <>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-3">
-        {messages.length === 0 ? (
+        {isLoading ? (
+          <div className="flex min-h-full items-center justify-center gap-2 text-sm text-copy-muted">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            Loading chat…
+          </div>
+        ) : loadError ? (
+          <p role="alert" className="flex min-h-full items-center justify-center px-4 text-center text-sm text-copy-muted">
+            Couldn&apos;t load the chat. Reload the page to try again.
+          </p>
+        ) : chat.length === 0 ? (
           <div className="flex min-h-full flex-col items-center justify-center gap-3 px-2 py-8 text-center">
             <span className="flex size-14 items-center justify-center rounded-2xl bg-ai-dim">
               <Bot className="size-8 text-ai-text" aria-hidden />
@@ -161,19 +195,36 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
           </div>
         ) : (
           <ol aria-label="Messages" className="flex flex-col gap-3">
-            {messages.map((message) => (
-              <li
-                key={message.id}
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap",
-                  message.role === "user"
-                    ? "self-end border-2 border-brand/50 bg-accent-dim text-copy-primary"
-                    : "self-start border border-surface-border bg-elevated text-ai-text"
-                )}
-              >
-                {message.content}
-              </li>
-            ))}
+            {chat.map((message) => {
+              const isMine = message.role === "user" && message.sender.id === me?.id
+              return (
+                <li
+                  key={message.id}
+                  className={cn("flex max-w-[85%] flex-col gap-1", isMine ? "items-end self-end" : "self-start")}
+                >
+                  <p className="flex items-baseline gap-1.5 px-1 text-[11px] text-copy-faint">
+                    <span className="max-w-40 truncate font-medium text-copy-muted">
+                      {isMine ? "You" : message.sender.name}
+                    </span>
+                    <time dateTime={new Date(message.timestamp).toISOString()}>
+                      {timeFormat.format(message.timestamp)}
+                    </time>
+                  </p>
+                  <div
+                    className={cn(
+                      "rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap",
+                      message.role === "assistant"
+                        ? "border border-surface-border bg-elevated text-ai-text"
+                        : isMine
+                          ? "border-2 border-brand/50 bg-accent-dim text-copy-primary"
+                          : "border border-surface-border bg-subtle text-copy-primary"
+                    )}
+                  >
+                    {message.content}
+                  </div>
+                </li>
+              )
+            })}
           </ol>
         )}
       </div>
@@ -183,11 +234,18 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
           <Textarea
             ref={inputRef}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setSendError(false)
+            }}
             onKeyDown={onKeyDown}
-            disabled={isGenerating}
+            // Not disabled while sending: that would drop focus mid-send. canSend guards double sends.
+            disabled={isGenerating || !me}
+            maxLength={MAX_CHAT_MESSAGE_LENGTH}
             placeholder={isGenerating ? "Ghost AI is working…" : "Describe the system you want to design…"}
             aria-label="Message Ghost AI"
+            aria-invalid={sendError || undefined}
+            aria-describedby="ai-chat-hint"
             rows={3}
             className="max-h-40 min-h-[72px] resize-none rounded-xl bg-elevated pr-12 dark:bg-elevated"
           />
@@ -195,15 +253,23 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
             <Button
               type="submit"
               size="icon-sm"
-              disabled={!draft.trim() || isGenerating}
-              aria-label={isGenerating ? "Ghost AI is working" : "Send message"}
+              disabled={!draft.trim() || !canSend}
+              aria-label={isGenerating ? "Ghost AI is working" : isSending ? "Sending" : "Send message"}
               className="absolute right-2 bottom-2 bg-ai text-white hover:bg-ai/85"
             >
-              {isGenerating ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
+              {isGenerating || isSending ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
             </Button>
           </Hint>
         </div>
-        <p className="mt-1.5 text-[11px] text-copy-faint">Enter to send · Shift+Enter for a new line</p>
+        <p
+          id="ai-chat-hint"
+          role={sendError ? "alert" : undefined}
+          className={cn("mt-1.5 text-[11px]", sendError ? "text-state-error" : "text-copy-faint")}
+        >
+          {sendError
+            ? "Message not sent. Check your connection and try again."
+            : "Enter to send · Shift+Enter for a new line"}
+        </p>
       </form>
     </>
   )

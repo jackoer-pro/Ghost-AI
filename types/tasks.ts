@@ -15,3 +15,22 @@ export const aiStatusMessageSchema = z.object({
 })
 
 export type AiStatusMessage = z.infer<typeof aiStatusMessageSchema>
+
+/** Room-scoped Liveblocks feed for the sidebar chat (spec 25). Separate from the status feed. */
+export const AI_CHAT_FEED_ID = "ai-chat"
+
+/** Every feed a room uses; the auth route creates them before anyone connects. */
+export const ROOM_FEED_IDS = [AI_STATUS_FEED_ID, AI_CHAT_FEED_ID] as const
+
+export const MAX_CHAT_MESSAGE_LENGTH = 4000
+
+/** One chat message. `role: "assistant"` is for Ghost AI's replies (a later spec); people send "user". */
+export const aiChatMessageSchema = z.object({
+  sender: z.object({ id: z.string().min(1), name: z.string() }),
+  role: z.enum(["user", "assistant"]),
+  content: z.string().trim().min(1).max(MAX_CHAT_MESSAGE_LENGTH),
+  /** Milliseconds since the epoch, set by the sender. */
+  timestamp: z.number().int().nonnegative(),
+})
+
+export type AiChatMessage = z.infer<typeof aiChatMessageSchema>
