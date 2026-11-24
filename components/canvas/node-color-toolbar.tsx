@@ -35,9 +35,10 @@ export function NodeColorToolbar({ color, onSelect, onDelete }: NodeColorToolbar
                 aria-label={pair.name}
                 aria-pressed={active}
                 onClick={() => onSelect({ color: pair.color, textColor: pair.textColor })}
-                style={{ backgroundColor: pair.color, "--swatch-text": pair.textColor } as CSSProperties}
+                // Same fill + outline as the node, so the swatch previews it.
+                style={{ backgroundColor: pair.color, borderColor: pair.border, "--swatch-text": pair.textColor } as CSSProperties}
                 className={cn(
-                  "flex size-6 items-center justify-center rounded-full border border-[var(--swatch-text)]/50 transition-shadow outline-none",
+                  "flex size-6 items-center justify-center rounded-full border-[1.5px] transition-shadow outline-none",
                   // Tight glow in the pair's text color: small blur, small spread.
                   "hover:shadow-[0_0_0_1px_var(--swatch-text),0_0_6px_0_var(--swatch-text)] focus-visible:shadow-[0_0_0_1px_var(--swatch-text),0_0_6px_0_var(--swatch-text)]",
                   active && "ring-2 ring-copy-primary ring-offset-2 ring-offset-elevated",

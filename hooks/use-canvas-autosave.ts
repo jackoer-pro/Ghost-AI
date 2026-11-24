@@ -116,10 +116,12 @@ export function useCanvasAutosave({ projectId, nodes, edges, onLoad }: Options):
   })
 
   // On mount: a room that already has content is live collaboration, never overwritten by the saved copy.
+  // `saved` stays null (we don't know what the server holds), so the room is saved once after the debounce.
+  // Assuming it was already saved left rooms drawn before autosave, or whose save failed, never written,
+  // and made Save report "Saved" without sending anything.
   useEffect(() => {
-    const { snapshot, json } = latest.current
+    const { snapshot } = latest.current
     if (snapshot.nodes.length > 0 || snapshot.edges.length > 0) {
-      saved.current = json
       setStatus("idle")
       setReady(true)
     } else {

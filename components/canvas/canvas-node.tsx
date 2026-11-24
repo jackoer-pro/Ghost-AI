@@ -28,7 +28,7 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
     history.pause()
     return () => history.resume()
   }, [editing, history])
-  const { color, textColor } = resolveNodeColors(data)
+  const { color, textColor, border } = resolveNodeColors(data)
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Escape") event.currentTarget.blur() // blur closes editing
@@ -54,7 +54,7 @@ export function CanvasNode({ id, data, selected }: NodeProps<CanvasNodeType>) {
       {/* nopan: React Flow's zoom filter would otherwise zoom the canvas in on a node double-click.
           Node dragging only checks `nodrag`, so it still works. */}
       <div className="canvas-node nopan size-full">
-        <NodeShapeBody shape={data.shape} color={color} selected={selected}>
+        <NodeShapeBody shape={data.shape} color={color} borderColor={border} selected={selected}>
           <div className="relative" onDoubleClick={() => setEditing(true)}>
             {/* Always rendered so it sizes the box: the textarea sits exactly on top of it, no layout shift.
                 The trailing space keeps a final newline's empty line visible. */}

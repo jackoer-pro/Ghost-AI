@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Playwright MCP screenshots/snapshots
 /.playwright-mcp
+
+# trigger.dev local build output
+/.trigger

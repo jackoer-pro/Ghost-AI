@@ -68,24 +68,30 @@ Radius increases with surface depth — smaller for inner elements, larger for o
 
 ### Node Color Palette
 
-8 defined color pairs. Each pair is a mid-tone fill that stands out from the dark canvas (≥ 1.9:1 against `--bg-base`, most ≥ 2.8:1) and from the other fills, with near-white text that passes WCAG AA (≥ 4.5:1) on it. Defined in `types/canvas.ts` as `NODE_COLORS`.
+8 defined colors, quiet enough for the dark workspace but easy to tell apart. Each has three parts:
 
-| Node fill | Text color | Character         | Text contrast |
-| --------- | ---------- | ----------------- | ------------- |
-| `#3F3F46` | `#FAFAFA`  | Neutral (default) | 10.0          |
-| `#1D4ED8` | `#EFF6FF`  | Blue              | 6.2           |
-| `#7E22CE` | `#FAF5FF`  | Purple            | 6.5           |
-| `#C2410C` | `#FFF7ED`  | Orange            | 4.9           |
-| `#B91C1C` | `#FEF2F2`  | Red               | 5.9           |
-| `#BE185D` | `#FDF2F8`  | Pink              | 5.5           |
-| `#15803D` | `#F0FDF4`  | Green             | 4.8           |
-| `#0F766E` | `#F0FDFA`  | Teal              | 5.3           |
+- a **dark tinted fill**: 32% of the hue (Tailwind 500) over `--bg-surface`, 1.5–2.0:1 against `--bg-base`;
+- a **softer outline** in the same hue: 70% of the hue's 400 shade over the fill, ≥ 3:1 against `--bg-base` (WCAG non-text). The outline carries most of the color;
+- a **pale tinted label** (the hue's 100 shade), ≥ 9:1 on its fill.
 
-The first palette (near-black fills `#1F1F1F`, `#10233D`, … at only 1.2–1.3:1 against the canvas) is still stored on older nodes; `resolveNodeColors()` draws those with the current pair at the same position. Live cursor colors are a separate fixed list (`CURSOR_COLORS` in `lib/liveblocks.ts`).
+Defined in `types/canvas.ts` as `NODE_COLORS`. Nodes store only `color` and `textColor`; the outline is looked up from the fill (`resolveNodeColors()`), and unknown fills get `--border-subtle`. Selected nodes swap the outline for `--text-secondary`.
 
-Default node color: `#1F1F1F` with `#EDEDED` text.
+| Fill      | Outline   | Label     | Character         | Fill vs canvas | Label vs fill |
+| --------- | --------- | --------- | ----------------- | -------------- | ------------- |
+| `#303035` | `#5E5E65` | `#F4F4F5` | Neutral (default) | 1.53           | 11.9          |
+| `#1E355C` | `#4C83CB` | `#DBEAFE` | Blue              | 1.64           | 10.0          |
+| `#41275D` | `#9A68CC` | `#F3E8FF` | Purple            | 1.59           | 10.6          |
+| `#5B3015` | `#CB7530` | `#FFEDD5` | Orange            | 1.79           | 9.8           |
+| `#582123` | `#C8595A` | `#FEE2E2` | Red               | 1.58           | 10.4          |
+| `#57233F` | `#C55A92` | `#FCE7F3` | Pink              | 1.64           | 10.4          |
+| `#164B2C` | `#3AB267` | `#DCFCE7` | Green             | 1.98           | 9.2           |
+| `#124643` | `#25A99A` | `#CCFBF1` | Teal              | 1.89           | 9.4           |
 
-Nodes store both colors (`data.color`, `data.textColor`). A selected node (only when it's the only one selected) shows a floating swatch toolbar 12px above it (`components/canvas/node-color-toolbar.tsx`, React Flow `NodeToolbar`): round swatches on a `bg-elevated` `rounded-xl` bar, active = `copy-primary` ring, hover = tight glow in the pair's text color.
+Two older palettes are still stored on existing nodes, and `resolveNodeColors()` draws them with the current color at the same position: v1, near-black fills (`#1F1F1F`, `#10233D`, …, only 1.2–1.3:1 against the canvas, so they looked like one shade); v2, saturated mid-tone fills (`#3F3F46`, `#1D4ED8`, …, too loud on the dark workspace). The swatch toolbar, the shape panel previews and the sign-in illustration use the same fill + outline. Live cursor colors are a separate fixed list (`CURSOR_COLORS` in `lib/liveblocks.ts`).
+
+Default node color: Neutral.
+
+Nodes store both colors (`data.color`, `data.textColor`). A selected node (only when it's the only one selected) shows a floating swatch toolbar 12px above it (`components/canvas/node-color-toolbar.tsx`, React Flow `NodeToolbar`): round swatches (fill + 1.5px outline, like the node) on a `bg-elevated` `rounded-xl` bar, active = `copy-primary` ring, hover = tight glow in the pair's text color.
 
 ### Edge Style
 
