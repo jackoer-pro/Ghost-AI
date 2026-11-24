@@ -27,7 +27,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Loader2, Unplug } from "lucide-react"
-import { useEffect, useRef, useState, type DragEvent } from "react"
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 
 import { CanvasControls } from "@/components/canvas/canvas-controls"
@@ -55,9 +55,14 @@ interface CollaborativeCanvasProps {
   onAutosaveChange: (autosave: CanvasAutosave | null) => void
 }
 
+interface CollaborativeCanvasRootProps extends CollaborativeCanvasProps {
+  /** Rendered inside the room but outside the canvas error boundary (the AI sidebar). */
+  children?: ReactNode
+}
+
 // Client boundary for the shared canvas: joins the project's Liveblocks room
 // (token from /api/liveblocks-auth) and renders React Flow on the synced state.
-export function CollaborativeCanvas({ roomId, ...flowProps }: CollaborativeCanvasProps) {
+export function CollaborativeCanvas({ roomId, children, ...flowProps }: CollaborativeCanvasRootProps) {
   return (
     // throttle 16ms (default 100ms) so live cursors move smoothly.
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth" throttle={16}>
@@ -73,6 +78,7 @@ export function CollaborativeCanvas({ roomId, ...flowProps }: CollaborativeCanva
           </ErrorBoundary>
           {/* Outside the error boundary, so the user menu stays reachable when the room fails. */}
           <PresenceAvatars />
+          {children}
         </div>
       </RoomProvider>
     </LiveblocksProvider>

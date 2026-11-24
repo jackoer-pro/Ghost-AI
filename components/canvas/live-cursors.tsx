@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs"
 import { useOthers } from "@liveblocks/react/suspense"
 import { useStore, ViewportPortal } from "@xyflow/react"
+import { Loader2 } from "lucide-react"
 
 // Other participants' pointers. Positions are flow coordinates (see the canvas onMouseMove), so a
 // cursor points at the same spot of the diagram whatever each viewer's pan and zoom.
@@ -30,9 +31,10 @@ export function LiveCursors() {
             </svg>
             <span
               style={{ backgroundColor: info.color }}
-              className="absolute top-4 left-3.5 max-w-40 truncate rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap text-bg-base"
+              className="absolute top-4 left-3.5 flex max-w-40 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap text-bg-base"
             >
-              {info.name}
+              {presence.thinking && <Loader2 className="size-3 shrink-0 animate-spin" />}
+              <span className="truncate">{info.name}</span>
             </span>
           </div>
         )
