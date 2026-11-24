@@ -104,6 +104,7 @@ change.
 - `lib/prisma.ts` uses the direct `@prisma/adapter-pg` path only. The spec's Accelerate branch for `prisma+postgres://` URLs is skipped because our `DATABASE_URL` is `postgres://`; add `@prisma/extension-accelerate` and the branch if that ever changes.
 - `DATABASE_URL` uses `sslmode=verify-full` (was `require`): pg already treats `require` as `verify-full` today but will weaken it in pg v9, so this pins the current strict behavior.
 - Prisma 7 `migrate dev` does not run `generate`; run `npx prisma generate` after each migration.
+- Vercel build fix (2026-11-24): the generated client (`lib/generated/prisma`) is gitignored, so Vercel's build failed with "module not found" from `lib/prisma.ts`. `build` is now `prisma generate && next build`, and `prisma.config.ts` reads `process.env.DATABASE_URL ?? ""` instead of `env("DATABASE_URL")` (which throws when unset), so generating never needs the database URL. Checked: deleted `lib/generated`, `DATABASE_URL= npm run build` passes. `DATABASE_URL`, `LIVEBLOCKS_SECRET_KEY` and the Clerk keys must still be set in Vercel for the app to run.
 
 - `proxy.ts` no longer runs `auth.protect()` on `/api/*`; each API handler calls `auth()` itself and returns JSON `401`/`403`. `auth.protect()` would answer an API call with a redirect or `404`, which breaks the spec's status codes. Every new API handler must do its own auth check.
 
