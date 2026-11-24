@@ -124,3 +124,4 @@ change.
 ## Session Notes
 
 - This Next.js version (16.4) has breaking changes; check `node_modules/next/dist/docs/` before writing code. Route middleware lives in `proxy.ts`, not `middleware.ts`.
+- Deploy fix (2026-11-24): Vercel's `/editor` failed with Prisma `P2021` (`public.Project` does not exist): the build ran `prisma generate` but never applied migrations to the deployed database. `npm run build` is now `prisma generate && prisma migrate deploy && next build` (applies pending migrations only, safe to re-run). Needs `DATABASE_URL` available at build time on Vercel.
