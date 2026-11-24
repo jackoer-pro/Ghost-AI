@@ -1,0 +1,11 @@
+// One row per Trigger.dev run we start, so token requests can be checked against who started it.
+model TaskRun {
+  id        String   @id @default(cuid())
+  runId     String   @unique // Trigger.dev run ID (run_…); @unique is also its index
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String // Clerk user ID of whoever started the run
+  createdAt DateTime @default(now())
+
+  @@index([userId, projectId])
+}

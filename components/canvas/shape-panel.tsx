@@ -4,7 +4,7 @@ import { useRef, type DragEvent } from "react"
 import { NodeShapeBody } from "@/components/canvas/node-shape"
 import { Hint } from "@/components/hint"
 import { SHAPE_DEFAULT_SIZES, SHAPE_DRAG_TYPE, shapeDragPayload } from "@/lib/shape-drag"
-import { DEFAULT_NODE_COLOR, NODE_SHAPES, type NodeShape } from "@/types/canvas"
+import { DEFAULT_NODE_COLOR, NODE_COLORS, NODE_SHAPES, type NodeShape } from "@/types/canvas"
 
 const SHAPE_ICONS: Record<NodeShape, LucideIcon> = {
   rectangle: RectangleHorizontal,
@@ -63,7 +63,7 @@ export function ShapePanel() {
             }}
             style={SHAPE_DEFAULT_SIZES[shape]}
           >
-            <NodeShapeBody shape={shape} color={DEFAULT_NODE_COLOR} />
+            <NodeShapeBody shape={shape} color={DEFAULT_NODE_COLOR} borderColor={NODE_COLORS[0].border} />
           </div>
         ))}
       </div>

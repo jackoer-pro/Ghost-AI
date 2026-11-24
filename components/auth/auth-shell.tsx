@@ -69,8 +69,8 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           {steps.map(({ icon: Icon, title, description, hue }, index) => (
             <li key={title} className="flex items-start gap-3">
               <span
-                className="flex size-9 shrink-0 items-center justify-center rounded-xl"
-                style={{ backgroundColor: hue.color, color: hue.textColor } as CSSProperties}
+                className="flex size-9 shrink-0 items-center justify-center rounded-xl border-[1.5px]"
+                style={{ backgroundColor: hue.color, borderColor: hue.border, color: hue.textColor } as CSSProperties}
               >
                 <Icon className="size-[18px]" aria-hidden />
               </span>
@@ -127,20 +127,25 @@ function DiagramIllustration() {
         </g>
 
         {/* Client (pill) */}
-        <rect x="12" y="62" width="84" height="36" rx="18" fill={blue.color} />
+        <rect x="12" y="62" width="84" height="36" rx="18" fill={blue.color} stroke={blue.border} strokeWidth="1.5" />
         <text x="54" y="80" fill={blue.textColor} {...label}>Client</text>
 
         {/* API gateway (rectangle) */}
-        <rect x="130" y="62" width="98" height="36" rx="6" fill={purple.color} />
+        <rect x="130" y="62" width="98" height="36" rx="6" fill={purple.color} stroke={purple.border} strokeWidth="1.5" />
         <text x="179" y="80" fill={purple.textColor} {...label}>API gateway</text>
 
         {/* Database (cylinder) */}
-        <path d="M264 26 v24 a40 6 0 0 0 80 0 v-24" fill={green.color} />
-        <ellipse cx="304" cy="26" rx="40" ry="6" fill={green.color} stroke={green.textColor} strokeOpacity="0.35" />
+        <path d="M264 26 v24 a40 6 0 0 0 80 0 v-24" fill={green.color} stroke={green.border} strokeWidth="1.5" />
+        <ellipse cx="304" cy="26" rx="40" ry="6" fill={green.color} stroke={green.border} strokeWidth="1.5" />
         <text x="304" y="41" fill={green.textColor} {...label}>Database</text>
 
         {/* Queue (hexagon) */}
-        <polygon points="274,104 334,104 344,122 334,140 274,140 264,122" fill={orange.color} />
+        <polygon
+          points="274,104 334,104 344,122 334,140 274,140 264,122"
+          fill={orange.color}
+          stroke={orange.border}
+          strokeWidth="1.5"
+        />
         <text x="304" y="122" fill={orange.textColor} {...label}>Queue</text>
 
         {/* A teammate's live cursor */}

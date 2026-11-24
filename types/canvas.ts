@@ -8,35 +8,45 @@ export const NODE_SHAPES = ["rectangle", "diamond", "circle", "pill", "cylinder"
 export type NodeShape = (typeof NODE_SHAPES)[number]
 
 /**
- * Node color pairs (ui-context "Node Color Palette"): mid-tone fills that stand apart from the dark
- * canvas and from each other, with near-white text (WCAG AA, ≥ 4.5:1 on every fill).
+ * Node colors (ui-context "Node Color Palette"): a dark fill tinted with the hue (32% of the hue over
+ * `--bg-surface`), a softer outline in the same hue that carries most of the color, and a pale tinted
+ * label (≥ 9:1 on its fill). Only `color` and `textColor` are stored on nodes; `border` is looked up.
  */
 export const NODE_COLORS = [
-  { name: "Neutral", color: "#3F3F46", textColor: "#FAFAFA" },
-  { name: "Blue", color: "#1D4ED8", textColor: "#EFF6FF" },
-  { name: "Purple", color: "#7E22CE", textColor: "#FAF5FF" },
-  { name: "Orange", color: "#C2410C", textColor: "#FFF7ED" },
-  { name: "Red", color: "#B91C1C", textColor: "#FEF2F2" },
-  { name: "Pink", color: "#BE185D", textColor: "#FDF2F8" },
-  { name: "Green", color: "#15803D", textColor: "#F0FDF4" },
-  { name: "Teal", color: "#0F766E", textColor: "#F0FDFA" },
+  { name: "Neutral", color: "#303035", border: "#5E5E65", textColor: "#F4F4F5" },
+  { name: "Blue", color: "#1E355C", border: "#4C83CB", textColor: "#DBEAFE" },
+  { name: "Purple", color: "#41275D", border: "#9A68CC", textColor: "#F3E8FF" },
+  { name: "Orange", color: "#5B3015", border: "#CB7530", textColor: "#FFEDD5" },
+  { name: "Red", color: "#582123", border: "#C8595A", textColor: "#FEE2E2" },
+  { name: "Pink", color: "#57233F", border: "#C55A92", textColor: "#FCE7F3" },
+  { name: "Green", color: "#164B2C", border: "#3AB267", textColor: "#DCFCE7" },
+  { name: "Teal", color: "#124643", border: "#25A99A", textColor: "#CCFBF1" },
 ] as const
+
+export type NodeColors = { color: string; textColor: string; border: string }
 
 export const DEFAULT_NODE_COLOR = NODE_COLORS[0].color
 export const DEFAULT_NODE_TEXT_COLOR = NODE_COLORS[0].textColor
 
-// Fills of the first palette (near-black, hard to tell apart), in NODE_COLORS order. Nodes already in
-// rooms and saved canvases still store these, so they're shown with the matching current pair.
-const LEGACY_FILLS = ["#1f1f1f", "#10233d", "#2e1938", "#331b00", "#3c1618", "#3a1726", "#0f2e18", "#062822"]
+// Fills of earlier palettes, each in NODE_COLORS order. Nodes in rooms and saved canvases still store
+// them, so they're drawn with the current pair at the same position.
+const LEGACY_FILLS = [
+  // v1: near-black, hard to tell apart
+  ["#1f1f1f", "#10233d", "#2e1938", "#331b00", "#3c1618", "#3a1726", "#0f2e18", "#062822"],
+  // v2: saturated mid-tones, too loud on the dark workspace
+  ["#3f3f46", "#1d4ed8", "#7e22ce", "#c2410c", "#b91c1c", "#be185d", "#15803d", "#0f766e"],
+]
 
-/** The colors to draw a node with: its stored pair, or the current pair for a legacy fill. */
-export function resolveNodeColors(data: Pick<CanvasNodeData, "color" | "textColor">): {
-  color: string
-  textColor: string
-} {
-  const legacy = LEGACY_FILLS.indexOf(data.color.toLowerCase())
-  if (legacy !== -1) return NODE_COLORS[legacy]
-  return { color: data.color, textColor: data.textColor ?? DEFAULT_NODE_TEXT_COLOR }
+/** The colors to draw a node with: its palette entry (current or legacy fill), else its stored pair. */
+export function resolveNodeColors(data: Pick<CanvasNodeData, "color" | "textColor">): NodeColors {
+  const fill = data.color.toLowerCase()
+  const current = NODE_COLORS.find((c) => c.color.toLowerCase() === fill)
+  if (current) return current
+  for (const fills of LEGACY_FILLS) {
+    const i = fills.indexOf(fill)
+    if (i !== -1) return NODE_COLORS[i]
+  }
+  return { color: data.color, textColor: data.textColor ?? DEFAULT_NODE_TEXT_COLOR, border: "var(--border-subtle)" }
 }
 
 // `type`, not `interface`: React Flow requires node data to be a Record<string, unknown>,

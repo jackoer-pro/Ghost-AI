@@ -8,6 +8,8 @@ interface NodeShapeBodyProps {
   shape: NodeShape
   /** Fill color (hex from node data). */
   color: string
+  /** Outline color at rest (palette `border`); selected nodes use a light outline instead. */
+  borderColor?: string
   selected?: boolean
   className?: string
   children?: ReactNode
@@ -80,9 +82,16 @@ export function MiniMapShape({ x, y, width, height, className, selected }: MiniM
 }
 
 /** Visual body of a node: CSS for rectangle/pill/circle, a stretched SVG for the rest. Fills its parent. */
-export function NodeShapeBody({ shape, color, selected = false, className, children }: NodeShapeBodyProps) {
+export function NodeShapeBody({
+  shape,
+  color,
+  borderColor: restBorder = "var(--border-subtle)",
+  selected = false,
+  className,
+  children,
+}: NodeShapeBodyProps) {
   const svg = SVG_SHAPES[shape]
-  const borderColor = selected ? "var(--text-secondary)" : "var(--border-subtle)"
+  const borderColor = selected ? "var(--text-secondary)" : restBorder
 
   return (
     <div
