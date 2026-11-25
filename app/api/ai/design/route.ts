@@ -1,59 +1,38 @@
-import { runs, tasks } from "@trigger.dev/sdk"
+import { z } from "zod"
 
-import { Prisma } from "@/lib/generated/prisma/client"
+import { runDesignAgent } from "@/lib/ai/design-agent"
+import { runInBackground, startRun } from "@/lib/ai/runs"
 import { authorizeProject } from "@/lib/project-access"
-import { prisma } from "@/lib/prisma"
 import { readJsonBody } from "@/lib/request"
-import type { designAgent } from "@/trigger/design-agent"
+import { MAX_CHAT_MESSAGE_LENGTH } from "@/types/tasks"
 
-const MAX_PROMPT_LENGTH = 4000
+// The agent runs in after() within this function's lifetime: ~20–50 s per run, well under the cap.
+export const maxDuration = 300
 
-const jsonError = (error: string, status: number) => Response.json({ error }, { status })
+const bodySchema = z.object({
+  prompt: z.string().trim().min(1, "Missing prompt").max(MAX_CHAT_MESSAGE_LENGTH, "Prompt is too long"),
+  /** Liveblocks room ID, which is the project ID; access is checked from it, never from a client projectId. */
+  roomId: z.string().min(1, "Missing roomId"),
+})
 
 /**
- * Starts the design agent for one project. Body: `{ prompt, roomId, projectId }`.
- * Any project member can run it (collaborators edit the canvas too). Returns `{ runId }`;
- * the client then asks `/api/ai/design/token` for a token to follow the run.
+ * Starts the design agent for one project. Body: `{ prompt, roomId }`. Any project member can run it
+ * (collaborators edit the canvas too). Returns `{ runId }` right away; poll `GET /api/ai/runs/{runId}`.
  */
 export async function POST(req: Request) {
   const body = await readJsonBody(req)
   if (body instanceof Response) return body
-  const { prompt, roomId, projectId } = body
+  const parsed = bodySchema.safeParse(body)
+  if (!parsed.success) return Response.json({ error: parsed.error.issues[0].message }, { status: 400 })
+  const { prompt, roomId } = parsed.data
 
-  if (typeof projectId !== "string" || !projectId) return jsonError("Missing projectId", 400)
-  // Room ID = project ID (architecture); a mismatch would let the agent edit a room we never authorized.
-  if (roomId !== projectId) return jsonError("roomId must match projectId", 400)
-  if (typeof prompt !== "string" || !prompt.trim()) return jsonError("Missing prompt", 400)
-  if (prompt.length > MAX_PROMPT_LENGTH) return jsonError("Prompt is too long", 400)
-
-  const auth = await authorizeProject(projectId, "member")
+  const auth = await authorizeProject(roomId, "member")
   if (auth instanceof Response) return auth
 
-  let runId: string
-  try {
-    const handle = await tasks.trigger<typeof designAgent>(
-      "design-agent",
-      { prompt: prompt.trim(), roomId: projectId },
-      // concurrencyKey: one design run per project at a time (the task's queue limit is 1); others wait.
-      { tags: [`project:${projectId}`], concurrencyKey: projectId }
-    )
-    runId = handle.id
-  } catch (err) {
-    console.error("Trigger.dev design-agent trigger failed:", err)
-    return jsonError("Background task service unavailable", 502)
-  }
-
-  try {
-    await prisma.taskRun.create({ data: { runId, projectId, userId: auth.identity.userId } })
-  } catch (err) {
-    // Without a record nobody can get a token for the run, so stop it rather than leave it orphaned.
-    await runs.cancel(runId).catch(() => {})
-    // P2003 = foreign key failed: the project was deleted mid-request.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
-      return jsonError("Not found", 404)
-    }
-    throw err
-  }
-
-  return Response.json({ runId }, { status: 201 })
+  const run = await startRun("DESIGN", auth.project.id, auth.identity.userId)
+  if (run instanceof Response) return run
+  runInBackground(run.id, async () => {
+    await runDesignAgent({ prompt, roomId: auth.project.id })
+  })
+  return Response.json({ runId: run.id }, { status: 202 })
 }

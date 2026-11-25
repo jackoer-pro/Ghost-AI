@@ -1,13 +1,16 @@
 "use client"
 
-import { shallow, useCreateFeedMessage, useFeedMessages, useOthers, useSelf } from "@liveblocks/react"
-import { Bot, Download, FileText, Loader2, SendHorizontal, Sparkles, X } from "lucide-react"
+import { shallow, useCreateFeedMessage, useFeedMessages, useOthers, useRoom, useSelf } from "@liveblocks/react"
+import { Bot, FileText, Loader2, SendHorizontal, Sparkles, X } from "lucide-react"
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 
+import { SpecsPanel } from "@/components/editor/specs-panel"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { useAiRun } from "@/hooks/use-ai-run"
+import { fetchJson } from "@/lib/fetch-json"
 import { cn } from "@/lib/utils"
 import {
   AI_CHAT_FEED_ID,
@@ -50,6 +53,7 @@ function useAiActivity(): { isGenerating: boolean; status: AiStatusMessage | nul
 // Slide-over AI sidebar on the right of the canvas. Open state is owned by the parent (editor shell).
 export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
   const { isGenerating, status } = useAiActivity()
+  const roomId = useRoom().id // room ID = project ID
   return (
     <aside
       inert={!isOpen}
@@ -74,8 +78,6 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
         </Hint>
       </header>
 
-      <AiStatus isGenerating={isGenerating} status={status} />
-
       <Tabs defaultValue="architect" className="min-h-0 flex-1 gap-0">
         <div className="shrink-0 px-3 pt-3">
           <TabsList className="w-full bg-subtle">
@@ -89,12 +91,13 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
             </TabsTrigger>
           </TabsList>
         </div>
-        {/* keepMounted: Base UI unmounts inactive panels, which would wipe the chat and draft on a tab switch. */}
+        {/* keepMounted: Base UI unmounts inactive panels, which would wipe the chat, the draft and a
+            run being followed on a tab switch. */}
         <TabsContent value="architect" keepMounted className="flex min-h-0 flex-col">
-          <ArchitectChat isGenerating={isGenerating} />
+          <ArchitectChat roomId={roomId} isGenerating={isGenerating} status={status} />
         </TabsContent>
-        <TabsContent value="specs" className="min-h-0 overflow-y-auto p-3">
-          <SpecsPanel />
+        <TabsContent value="specs" keepMounted className="min-h-0 overflow-y-auto p-3">
+          <SpecsPanel roomId={roomId} />
         </TabsContent>
       </Tabs>
     </aside>
@@ -103,15 +106,26 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
 
-// Room chat on the `ai-chat` feed: everyone in the project sees the same messages live.
-function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
+interface ArchitectChatProps {
+  roomId: string
+  /** Someone's AI run is active in the room (from presence). */
+  isGenerating: boolean
+  status: AiStatusMessage | null
+}
+
+// Room chat on the `ai-chat` feed: everyone in the project sees the same messages live. Each message is
+// also a design prompt: sending starts the design agent, whose outcome Ghost AI posts back to the chat.
+function ArchitectChat({ roomId, isGenerating, status }: ArchitectChatProps) {
   const { messages, isLoading, error: loadError } = useFeedMessages(AI_CHAT_FEED_ID)
   const createFeedMessage = useCreateFeedMessage()
   // null until the room connects, so sending waits for a known sender.
   const me = useSelf((self) => ({ id: self.id, name: self.info.name }), shallow)
   const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
-  const [sendError, setSendError] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  /** The design run this tab started, until it finishes. */
+  const [runId, setRunId] = useState<string | null>(null)
+  useAiRun(runId, () => setRunId(null)) // the agent posts the result (or error) to the chat itself
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -126,7 +140,8 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
   }, [chat.length])
 
-  const canSend = !!me && !isGenerating && !isSending
+  const isBusy = isGenerating || runId !== null
+  const canSend = !!me && !isBusy && !isSending
 
   async function send(event?: FormEvent) {
     event?.preventDefault()
@@ -134,12 +149,24 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
     if (!content || !me || !canSend) return
     const message: AiChatMessage = { sender: me, role: "user", content, timestamp: Date.now() }
     setIsSending(true)
-    setSendError(false)
+    setSendError(null)
     try {
-      await createFeedMessage(AI_CHAT_FEED_ID, message)
-      setDraft("") // only once the server accepted it, so a failed send keeps the text
-    } catch {
-      setSendError(true)
+      try {
+        await createFeedMessage(AI_CHAT_FEED_ID, message)
+      } catch {
+        return setSendError("Message not sent. Check your connection and try again.") // draft kept
+      }
+      setDraft("") // the message is in the chat; the prompt now goes to the agent
+      try {
+        const res = await fetchJson<{ runId: string }>("/api/ai/design", {
+          method: "POST",
+          body: { prompt: content, roomId },
+        })
+        if (res) setRunId(res.runId)
+      } catch (err) {
+        // Shown only to this sender (e.g. "already working"): it's about their request, not the room's chat.
+        setSendError(err instanceof Error ? err.message : "Ghost AI couldn't start. Try again.")
+      }
     } finally {
       setIsSending(false)
     }
@@ -229,6 +256,7 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
         )}
       </div>
 
+      {isBusy && <AiStatus status={status} />}
       <form onSubmit={send} className="shrink-0 border-t border-surface-border p-3">
         <div className="relative">
           <Textarea
@@ -236,28 +264,28 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value)
-              setSendError(false)
+              setSendError(null)
             }}
             onKeyDown={onKeyDown}
             // Not disabled while sending: that would drop focus mid-send. canSend guards double sends.
-            disabled={isGenerating || !me}
+            disabled={isBusy || !me}
             maxLength={MAX_CHAT_MESSAGE_LENGTH}
-            placeholder={isGenerating ? "Ghost AI is working…" : "Describe the system you want to design…"}
+            placeholder={isBusy ? "Ghost AI is working…" : "Describe the system you want to design…"}
             aria-label="Message Ghost AI"
-            aria-invalid={sendError || undefined}
+            aria-invalid={sendError ? true : undefined}
             aria-describedby="ai-chat-hint"
             rows={3}
             className="max-h-40 min-h-[72px] resize-none rounded-xl bg-elevated pr-12 dark:bg-elevated"
           />
-          <Hint label={isGenerating ? "Ghost AI is working" : "Send (Enter)"} side="top">
+          <Hint label={isBusy ? "Ghost AI is working" : "Send (Enter)"} side="top">
             <Button
               type="submit"
               size="icon-sm"
               disabled={!draft.trim() || !canSend}
-              aria-label={isGenerating ? "Ghost AI is working" : isSending ? "Sending" : "Send message"}
+              aria-label={isBusy ? "Ghost AI is working" : isSending ? "Sending" : "Send message"}
               className="absolute right-2 bottom-2 bg-ai text-white hover:bg-ai/85"
             >
-              {isGenerating || isSending ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
+              {isBusy || isSending ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
             </Button>
           </Hint>
         </div>
@@ -266,67 +294,27 @@ function ArchitectChat({ isGenerating }: { isGenerating: boolean }) {
           role={sendError ? "alert" : undefined}
           className={cn("mt-1.5 text-[11px]", sendError ? "text-state-error" : "text-copy-faint")}
         >
-          {sendError
-            ? "Message not sent. Check your connection and try again."
-            : "Enter to send · Shift+Enter for a new line"}
+          {sendError ?? "Enter to send · Shift+Enter for a new line"}
         </p>
       </form>
     </>
   )
 }
 
-// One-line strip under the header: only the newest status, never the history.
-function AiStatus({ isGenerating, status }: { isGenerating: boolean; status: AiStatusMessage | null }) {
-  // While someone is generating, show a spinner even before the first status message lands.
-  if (!status && !isGenerating) return null
-  const isError = !isGenerating && status?.stage === "error"
+const ACTIVE_STAGES = new Set<AiStatusMessage["stage"]>(["started", "thinking", "applying"])
+
+// Compact strip above the input, shown only while a run is active: the newest status, never the history.
+function AiStatus({ status }: { status: AiStatusMessage | null }) {
+  // The newest message can still be the previous run's "complete" while a new run starts.
+  const text = status && ACTIVE_STAGES.has(status.stage) ? status.text : "Ghost AI is working…"
   return (
     <div
       role="status"
       aria-live="polite"
-      className={cn(
-        "flex shrink-0 items-center gap-2 border-b border-surface-border px-3 py-2 text-xs",
-        isError ? "text-state-error" : isGenerating ? "text-ai-text" : "text-copy-muted"
-      )}
+      className="flex shrink-0 items-center gap-2 border-t border-surface-border bg-ai-dim/40 px-3 py-2 text-xs text-ai-text"
     >
-      {isGenerating ? (
-        <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
-      ) : (
-        <Sparkles className="size-3.5 shrink-0" aria-hidden />
-      )}
-      <span className="min-w-0 truncate">{status?.text ?? "Ghost AI is working…"}</span>
-    </div>
-  )
-}
-
-// Static demo until spec generation lands (features 27–29).
-function SpecsPanel() {
-  return (
-    <div className="flex flex-col gap-3">
-      <Button className="w-full bg-ai text-white hover:bg-ai/85">
-        <Sparkles />
-        Generate Spec
-      </Button>
-      <article className="flex gap-3 rounded-2xl border border-surface-border bg-elevated p-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-ai-dim">
-          <FileText className="size-5 text-ai-text" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium text-copy-primary">E-commerce backend spec</h3>
-          <p className="mt-1 line-clamp-3 text-xs text-copy-muted">
-            API gateway in front of catalog, cart and order services; orders publish events to a queue consumed by
-            payments and notifications. Postgres per service, Redis for sessions.
-          </p>
-        </div>
-        <Hint label="Download (coming soon)" side="left">
-          {/* Wrapper span: a disabled button gets no pointer events, so the tooltip needs its own trigger. */}
-          <span className="self-start" tabIndex={0}>
-            <Button variant="ghost" size="icon-sm" disabled aria-label="Download spec">
-              <Download className="size-4" />
-            </Button>
-          </span>
-        </Hint>
-      </article>
+      <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+      <span className="min-w-0 truncate">{text}</span>
     </div>
   )
 }

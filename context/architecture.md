@@ -9,13 +9,13 @@
 | Auth             | Clerk                   | User identity and route protection                             |
 | Database         | Prisma + PostgreSQL     | Relational metadata: projects, collaborators, specs, task runs |
 | Canvas           | Liveblocks + React Flow | Real-time collaborative canvas, presence, and cursors          |
-| Background tasks | Trigger.dev             | Durable AI generation workflows                                |
+| Background work  | Next.js `after()`       | AI runs after the API response, on Vercel Functions (300 s)    |
 | Artifact storage | Vercel Blob             | Canvas snapshots and generated Markdown specs                  |
 
 ## System Boundaries
 
-- `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, and persistence.
-- `trigger` — Long-running background jobs: AI design generation and spec generation.
+- `app/api` — Authenticated request handlers: input validation, ownership checks, starting AI runs, and persistence.
+- `lib/ai` — AI work: the design agent, spec generation, the run lifecycle (`runs.ts`) and Ghost AI's room identity (`room.ts`).
 - `lib` — Shared infrastructure: Prisma client, access control helpers, and utilities.
 - `components` — UI composition: canvas surfaces, sidebars, dialogs, and interactive elements.
 - `prisma` — Database schema and generated client output.
@@ -52,23 +52,23 @@
 ### Design Generation
 
 - Input: user prompt, project context, and current canvas state.
-- Execution: durable background task via Trigger.dev.
+- Execution: `POST /api/ai/design` records a `TaskRun` (RUNNING) and runs `runDesignAgent()` in `after()` (`lib/ai/runs.ts`), so the response returns at once; the row becomes COMPLETED or FAILED. The client polls `GET /api/ai/runs/{runId}` (`hooks/use-ai-run.ts`). Not durable: a killed function isn't resumed; a RUNNING row older than 330 s counts as FAILED. (Trigger.dev was dropped on 2026-11-25: its free tier required a verified card.)
 - Output: structured node and edge updates written into the shared Liveblocks room.
-- Flow (`trigger/design-agent.ts`): read the room with `mutateFlow` (`@liveblocks/react-flow/node`, the server side of `useLiveblocksFlow`), ask Gemini (`@ai-sdk/google`, `generateText` + `Output.object`) for a list of actions, then apply them one `mutateFlow` call each, so collaborators watch the diagram build.
+- Flow (`lib/ai/design-agent.ts`): read the room with `mutateFlow` (`@liveblocks/react-flow/node`, the server side of `useLiveblocksFlow`), ask Gemini (`@ai-sdk/google`, `generateText` + `Output.object`) for a list of actions, then apply them one `mutateFlow` call each, so collaborators watch the diagram build.
 - The model only proposes. `lib/design-actions.ts` validates and applies every action: shapes and colors come from `NODE_SHAPES` and the palette names, sizes from `SHAPE_DEFAULT_SIZES` (clamped to the UI's resize limits), and positions from grid cells (260px columns, 160px rows, the starter templates' spacing) with occupied cells skipped. Nodes and edges are built with `lib/canvas-builders.ts`, the same builders the starter templates use. An invalid action is skipped, never thrown.
-- Progress goes to the room's `ai-status-feed` Liveblocks feed (`types/tasks.ts` schema: `stage` + `text`). The agent appears as the participant `ghost-ai-agent` ("Ghost AI") via server-set presence (`cursor` follows each change, `thinking: true`), cleared with a 2s TTL when the run ends.
+- Progress goes to the room's `ai-status-feed` Liveblocks feed (`types/tasks.ts` schema: `stage` + `text`). The agent appears as the participant `ghost-ai-agent` ("Ghost AI") via server-set presence (`cursor` follows each change, `thinking: true`), cleared with a 2s TTL when the run ends. The outcome (summary or error) is posted to `ai-chat` as a Ghost AI `assistant` message, server-side, so it appears once for everyone.
 - Room feeds: `ai-status-feed` (AI progress, written by tasks) and `ai-chat` (sidebar chat, written by members; `aiChatMessageSchema`: `sender`, `role`, `content`, `timestamp`). Never mixed. Both are created by `ensureRoomFeeds()` in `/api/liveblocks-auth` before a client connects, because `useFeedMessages` on a missing feed errors once and never retries. Feed data is validated with its Zod schema before rendering.
-- One run per project at a time (task queue limit 1, `concurrencyKey` = project ID); no retries, because actions aren't idempotent. A failed run keeps the changes already applied and posts an `error` status.
+- One run per project and kind at a time (`startRun()` answers 409 while one is RUNNING); no retries, because actions aren't idempotent. A failed run keeps the changes already applied and posts an `error` status.
 
 ### Spec Generation
 
-- Input: current canvas graph and project context.
-- Execution: durable background task via Trigger.dev.
-- Output: Markdown technical spec saved to the filesystem and linked to the project in the database.
+- Input: `{ roomId }` only; the canvas (`mutateFlow` read) and the last 60 valid `ai-chat` messages are read server-side, not trusted from the client.
+- Execution: `POST /api/ai/spec` → `TaskRun` (kind SPEC) → `generateSpec()` in `after()`; the COMPLETED run carries the `specId`.
+- Output: Markdown in private Vercel Blob at `specs/{projectId}/{specId}.md`, metadata in `ProjectSpec` (`filePath`). Listed by `GET /api/projects/{id}/specs`, served only by `GET /api/projects/{id}/specs/{specId}/download` after an access check (the sidebar preview reads the same route). Rendered with `react-markdown` (no raw HTML).
 
 ## Invariants
 
-1. Request handlers do not run long-lived AI work — that belongs in background tasks.
+1. Request handlers never make the client wait on AI work: it runs in `after()` via `runInBackground()`, tracked by a `TaskRun` row.
 2. Metadata and large generated artifacts are stored in separate layers.
 3. Auth and ownership are enforced at every mutation boundary.
 4. Client components are used only where browser interactivity or real-time state requires them.

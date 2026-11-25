@@ -11,7 +11,7 @@ import { NODE_COLORS, NODE_SHAPES, resolveNodeColors, type CanvasEdge, type Canv
 /** Grid the agent lays out on: the starter templates' spacing (node centers 260px apart, rows 160px). */
 export const GRID = { column: 260, row: 160 } as const
 /** Upper bound on actions applied per run (also keeps a runaway response from flooding the room). */
-export const MAX_ACTIONS = 60
+export const MAX_ACTIONS = 100
 const MAX_NODE_WIDTH = 480
 const MAX_NODE_HEIGHT = 320
 const MAX_LABEL_LENGTH = 60
@@ -20,71 +20,158 @@ const MAX_CELL = 40
 
 const COLOR_NAMES = NODE_COLORS.map((c) => c.name) as [ColorName, ...ColorName[]]
 
-// One flat object instead of a discriminated union: structured-output support for `anyOf` varies across
-// Gemini models, and a flat schema with optional fields works everywhere. Per-type checks happen below.
-// No length/range limits in the schema either: one long label would fail the whole response, so values
-// are clamped in code instead.
-export const designActionSchema = z.object({
-  type: z.enum(["add_node", "move_node", "resize_node", "update_node", "delete_node", "add_edge", "delete_edge"]),
-  id: z
-    .string()
-    .optional()
-    .describe("Node id. add_node: a short new id that later actions can reference. Other node actions: an existing id."),
-  label: z.string().optional().describe("Node or edge label, at most 4 words."),
-  shape: z.enum(NODE_SHAPES).optional(),
-  color: z.enum(COLOR_NAMES).optional(),
-  column: z.number().optional().describe("Grid column, left to right in the direction of flow."),
-  row: z.number().optional().describe("Grid row, top to bottom for parallel components."),
-  width: z.number().optional().describe("resize_node only, in pixels."),
-  height: z.number().optional().describe("resize_node only, in pixels."),
-  source: z.string().optional().describe("add_edge / delete_edge: source node id."),
-  target: z.string().optional().describe("add_edge / delete_edge: target node id."),
-})
+/** One change to apply. Internal: the model never sees this shape (see designPlanSchema). */
+export interface DesignAction {
+  type: "add_node" | "move_node" | "resize_node" | "update_node" | "delete_node" | "add_edge" | "delete_edge"
+  id?: string
+  label?: string
+  shape?: (typeof NODE_SHAPES)[number]
+  color?: ColorName
+  column?: number
+  row?: number
+  width?: number
+  height?: number
+  source?: string
+  target?: string
+}
 
+const nodeRef = () => z.string().describe("A node id: an existing node's id, or an id you gave in addNodes.")
+
+// What the model returns: one list per kind of change, with required fields where the change needs them.
+// (A single flat "action" with every field optional made Gemini lose track of which fields belong to which
+// action: live runs produced an edge whose target was a paragraph, and an edge repeated thousands of times.)
+// No unions (structured-output support for `anyOf` varies across Gemini models) and no length/range limits
+// (one long label would fail the whole response): values are validated and clamped when applied.
 export const designPlanSchema = z.object({
-  summary: z.string().describe("One short sentence describing what changed, shown to everyone in the room."),
-  actions: z.array(designActionSchema),
+  summary: z.string().describe("1–2 sentences for the team: what was designed or changed, and the key decision."),
+  addNodes: z
+    .array(
+      z.object({
+        id: z.string().describe("Short new snake_case id, e.g. orders_db. Edges reference it."),
+        label: z.string().describe("At most 4 words."),
+        shape: z.enum(NODE_SHAPES),
+        color: z.enum(COLOR_NAMES),
+        column: z.number(),
+        row: z.number(),
+      })
+    )
+    .describe("New nodes."),
+  updateNodes: z
+    .array(
+      z.object({
+        id: nodeRef(),
+        label: z.string().optional(),
+        shape: z.enum(NODE_SHAPES).optional(),
+        color: z.enum(COLOR_NAMES).optional(),
+        column: z.number().optional().describe("With row: move the node to this cell."),
+        row: z.number().optional(),
+        width: z.number().optional().describe("Pixels; only when asked to resize."),
+        height: z.number().optional(),
+      })
+    )
+    .describe("Changes to existing nodes; only the fields that change."),
+  deleteNodes: z.array(nodeRef()).describe("Ids of nodes to remove; their edges go with them."),
+  addEdges: z
+    .array(
+      z.object({
+        source: nodeRef(),
+        target: nodeRef(),
+        label: z.string().describe("Protocol or interaction, 1–3 words."),
+      })
+    )
+    .describe("New connections, each listed once."),
+  deleteEdges: z.array(z.object({ source: nodeRef(), target: nodeRef() })).describe("Connections to remove."),
 })
 
-export type DesignAction = z.infer<typeof designActionSchema>
 export type DesignPlan = z.infer<typeof designPlanSchema>
 
-export const DESIGN_SYSTEM_PROMPT = `You are Ghost AI, a system design assistant editing a shared architecture diagram.
-Return the smallest list of actions that fulfils the user's request.
+/**
+ * The plan as actions, in the order they're applied: removals first (so freed cells can be reused),
+ * then updates, new nodes, and finally edges, which then find every node they reference.
+ */
+export function planToActions(plan: DesignPlan): DesignAction[] {
+  const updates = plan.updateNodes.flatMap((u): DesignAction[] => [
+    ...(u.label !== undefined || u.shape || u.color
+      ? [{ type: "update_node" as const, id: u.id, label: u.label, shape: u.shape, color: u.color }]
+      : []),
+    ...(u.width !== undefined || u.height !== undefined
+      ? [{ type: "resize_node" as const, id: u.id, width: u.width, height: u.height }]
+      : []),
+    ...(u.column !== undefined || u.row !== undefined
+      ? [{ type: "move_node" as const, id: u.id, column: u.column, row: u.row }]
+      : []),
+  ])
+  return [
+    ...plan.deleteEdges.map((e): DesignAction => ({ type: "delete_edge", source: e.source, target: e.target })),
+    ...plan.deleteNodes.map((id): DesignAction => ({ type: "delete_node", id })),
+    ...updates,
+    ...plan.addNodes.map((n): DesignAction => ({ type: "add_node", ...n })),
+    ...plan.addEdges.map((e): DesignAction => ({ type: "add_edge", ...e })),
+  ]
+}
 
-Actions:
-- add_node: id, label, shape, color, column, row
-- move_node: id, column, row
-- resize_node: id, width, height (only when asked; default sizes are best)
-- update_node: id, and any of label, shape, color
-- delete_node: id (its edges are removed with it)
-- add_edge: source, target, optional label (e.g. "HTTPS", "events")
-- delete_edge: source, target
+export const DESIGN_SYSTEM_PROMPT = `You are Ghost AI, a principal software architect editing a shared architecture diagram.
+The team will build the real system from this diagram, so design like you would for production, not a toy.
+
+Two kinds of request:
+1. A new system (empty canvas, or "design / build / create …"): draw a complete end-to-end architecture
+   for that product, from the users to the data. Infer the components a real version needs even when the
+   prompt doesn't name them, but stay proportional: no component without a clear job in this product.
+2. A change to the existing diagram ("add / rename / remove / move / connect …"): make only the changes
+   asked for, plus the edges they need. Keep everything else exactly as it is.
+
+What a complete design covers (pick what the product actually needs):
+- Clients: web app, mobile app, admin console, partner/API consumers.
+- Edge: CDN for static assets, WAF/rate limiting, load balancer or API gateway as the single entry point.
+- Identity: an auth/identity service or provider (OAuth/OIDC) used by the gateway.
+- Core services: split by business capability (e.g. Orders, Payments, Catalog), not by technical layer.
+  Each owns its data.
+- Async work: a message queue or event stream for slow, retryable or fan-out work, with the worker
+  services that consume it (emails, notifications, indexing, billing, media processing).
+- Data: a database per service where ownership differs (name the engine when it matters: PostgreSQL,
+  MongoDB, Cassandra…), a cache for hot reads, object storage for files and media, a search index when
+  there is search, a data warehouse or analytics pipeline when there is reporting.
+- External systems: payment providers, email/SMS providers, maps, LLM APIs… as their own nodes.
+- Operations: observability (logs, metrics, traces) and alerting for any non-trivial system.
+A typical new product has 12 to 25 nodes. Prefer one clear, buildable design over listing alternatives.
+
+Reply with a plan of five lists (use [] for the ones you don't need):
+- addNodes: id, label, shape, color, column, row
+- updateNodes: id plus only what changes (label, shape, color; column and row to move; width and height
+  only when asked to resize, default sizes are best)
+- deleteNodes: ids (their edges are removed with them)
+- addEdges: source, target, label
+- deleteEdges: source, target
 
 Shapes (pick by meaning):
 - circle: client, user or endpoint
-- hexagon: gateway, load balancer, external system or boundary
+- hexagon: gateway, load balancer, CDN, external system or boundary
 - pill: service or process
-- rectangle: general component, worker or job
-- cylinder: database, cache or storage
+- rectangle: worker, job, scheduler or general component
+- cylinder: database, cache, queue, stream or storage
 - diamond: decision
 
-Colors (use them consistently by role): Neutral = clients and users, Blue = entry points and gateways,
-Purple = services, Teal = data stores, Orange = queues, streams and decisions, Pink = external or third-party,
-Green = success paths and outputs, Red = failures and alerts.
+Colors (consistent by role): Neutral = clients and users, Blue = edge, gateways and identity,
+Purple = services, Teal = databases, caches and storage, Orange = queues, streams and workers,
+Pink = external or third-party systems, Green = analytics and outputs, Red = monitoring and alerting.
 
-Layout:
-- Place nodes on a grid with integer column and row numbers. Flow runs left to right: callers in lower
-  columns, the things they call in the next column. Put parallel components of one layer in the same
-  column on different rows, centered around row 0.
-- Never put two nodes in the same cell. When extending an existing diagram, use free cells next to the
-  nodes you connect to.
+Layout (integer grid cells; flow runs left to right):
+- column 0: clients · column 1: edge (CDN, WAF, load balancer) · column 2: gateway and identity ·
+  columns 3–4: services · column 5: queues and workers · column 6: databases, caches, storage ·
+  column 7: external systems and analytics. Skip columns the design doesn't use.
+- Stack the components of one column on different rows, centered around row 0, and put each data store
+  on the same row as the service that owns it so edges stay short and straight.
+- Never put two nodes in the same cell. When extending a diagram, use free cells next to the nodes you connect.
 
-Rules:
-- Labels: short, at most 4 words. No ids in labels.
-- A new design usually has 5 to 15 nodes. Connect every node to at least one other.
-- Only change existing nodes when the request asks for it. Reference existing nodes by their exact id.
-- Edges point in the direction of calls or data flow.`
+Edges:
+- Point in the direction of the call or data flow. Every node connects to at least one other. List each edge once.
+- Always label them with the protocol or interaction, 1–3 words: "HTTPS", "REST", "gRPC", "SQL",
+  "cache read", "publish OrderPlaced", "consume", "webhook", "S3 upload", "OIDC".
+
+Labels: specific and short, at most 4 words ("Orders Service", "Orders DB (Postgres)", "Redis Cache"),
+never generic ("Service 1", "Database") and never ids.
+Reference existing nodes by their exact id.
+Summary: 1–2 sentences for the team: what you designed or changed and the key decision (e.g. why a queue).`
 
 // ---------------------------------------------------------------------------------------------------
 // Canvas <-> grid
@@ -182,16 +269,6 @@ function findNode(flow: Flow, ctx: ApplyContext, ref: string | undefined): Canva
     flow.getNode(`ai-${slug(ref)}`) ||
     flow.nodes.find((n) => n.data.label.trim().toLowerCase() === label)
   )
-}
-
-const EDGE_ACTIONS = new Set<DesignAction["type"]>(["add_edge", "delete_edge"])
-
-/**
- * The order actions are applied in: node changes first, then edges (stable within each group), so an
- * edge the model listed before its nodes still finds them.
- */
-export function orderActions(actions: readonly DesignAction[]): DesignAction[] {
-  return [...actions.filter((a) => !EDGE_ACTIONS.has(a.type)), ...actions.filter((a) => EDGE_ACTIONS.has(a.type))]
 }
 
 /** Validates one model action and applies it to the flow. Invalid actions are skipped, never thrown. */

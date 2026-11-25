@@ -1,11 +1,39 @@
-// One row per Trigger.dev run we start, so token requests can be checked against who started it.
+enum TaskRunKind {
+  DESIGN
+  SPEC
+}
+
+enum TaskRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// One row per AI run (design agent or spec generation). The run executes in the API route's after()
+// callback; this row is how the client follows it and how we check who started it.
 model TaskRun {
-  id        String   @id @default(cuid())
-  runId     String   @unique // Trigger.dev run ID (run_…); @unique is also its index
+  id        String        @id @default(cuid()) // the run ID the client polls
+  kind      TaskRunKind
+  status    TaskRunStatus @default(RUNNING)
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String // Clerk user ID of whoever started the run
-  createdAt DateTime @default(now())
+  /** SPEC runs: the spec they produced, once COMPLETED. */
+  specId    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([userId, projectId])
+  @@index([projectId, kind, status])
+}
+
+// Metadata for a generated spec; the Markdown itself lives in Vercel Blob at `filePath`.
+model ProjectSpec {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  filePath  String // private Blob URL; only read server-side after an access check
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }
