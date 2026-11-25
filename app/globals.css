@@ -148,6 +148,11 @@
   html {
     @apply font-sans;
     }
+  /* Browser surfaces carry the theme too: text selection in the brand tint instead of the OS blue. */
+  ::selection {
+    background-color: color-mix(in srgb, var(--accent-primary) 32%, transparent);
+    color: var(--text-primary);
+    }
 }
 /* Canvas: connection handles (hidden until the node is hovered) and custom edges.
    Selectors are prefixed with .react-flow so they beat @xyflow/react's own styles. */
