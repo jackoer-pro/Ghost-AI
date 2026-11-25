@@ -1,3 +1,5 @@
+> **Runner change (2026-11-25):** Trigger.dev was replaced by Next.js `after()` on Vercel Functions (its free tier needs a verified card). Read "Trigger.dev task" as a `lib/ai/` function run by `runInBackground()`, `useRealtimeRun` + public token as polling `GET /api/ai/runs/{runId}` (`hooks/use-ai-run.ts`), and the token routes as that status route. See `context/architecture.md` → AI Generation Model.
+
 Create the backend flow for AI-powered spec generation: API route, Trigger.dev task, token route, and run ownership tracking.
 
 ### Implementation

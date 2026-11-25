@@ -1,3 +1,5 @@
+> **Runner change (2026-11-25):** Trigger.dev was replaced by Next.js `after()` on Vercel Functions (its free tier needs a verified card). Read "Trigger.dev task" as a `lib/ai/` function run by `runInBackground()`, `useRealtimeRun` + public token as polling `GET /api/ai/runs/{runId}` (`hooks/use-ai-run.ts`), and the token routes as that status route. See `context/architecture.md` → AI Generation Model.
+
 Wire up the AI sidebar so users can submit design prompts, track AI run status
 in real time, and reflect AI-driven canvas updates through Liveblocks.
 

@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server"
 import { LiveblocksError } from "@liveblocks/node"
 
-import { cursorColor, getLiveblocks } from "@/lib/liveblocks"
+import { cursorColor, ensureRoomFeeds, getLiveblocks } from "@/lib/liveblocks"
 import { getProjectForUser, identityOf } from "@/lib/project-access"
 import { readJsonBody } from "@/lib/request"
 
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     },
   })
   session.allow(project.id, ["*:write"])
-  const { status, body: token } = await session.authorize()
+  // In parallel: the feeds only need to exist before the client connects with this token.
+  const [{ status, body: token }] = await Promise.all([session.authorize(), ensureRoomFeeds(project.id)])
   return new Response(token, { status, headers: { "Content-Type": "application/json" } })
 }
