@@ -200,9 +200,9 @@ function Flow({ roomId, templatesOpen, onTemplatesOpenChange, onAutosaveChange }
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1.5}
-          color="var(--border-subtle)"
+          gap={24}
+          size={3.5}
+          color="var(--text-muted)"
           bgColor="var(--bg-base)"
         />
         <MiniMap<CanvasNode>
