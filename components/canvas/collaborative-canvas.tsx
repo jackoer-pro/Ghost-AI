@@ -201,7 +201,7 @@ function Flow({ roomId, templatesOpen, onTemplatesOpenChange, onAutosaveChange }
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
-          size={3.5}
+          size={2}
           color="var(--text-muted)"
           bgColor="var(--bg-base)"
         />
