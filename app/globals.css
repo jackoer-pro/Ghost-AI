@@ -171,7 +171,7 @@
 }
 /* Resize controls on the selected node: thin outline, small squares at the corners. */
 .react-flow .react-flow__resize-control.canvas-resize-line {
-  border-color: var(--border-subtle);
+  border-color: var(--text-muted);
 }
 .react-flow .react-flow__resize-control.canvas-resize-handle {
   width: 7px;
@@ -184,7 +184,7 @@
   stroke: var(--edge-color);
   stroke-width: 1.5;
   stroke-linecap: round;
-  opacity: 0.55;
+  opacity: 0.8;
   transition: opacity 150ms;
 }
 .react-flow .react-flow__edge:hover .canvas-edge.react-flow__edge-path,
